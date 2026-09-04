@@ -1,365 +1,961 @@
 @model IEnumerable<BloomCast.Models.Lote>
 
 @{
-    ViewData["Title"] = "Gestión de lotes";
+    ViewData["Title"] = "Lotes";
 
     var hoy = DateTime.UtcNow.Date;
 }
 
-<div class="container py-4">
+<style>
 
-    <!-- Encabezado -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    :root {
+        --sage: #7a9b76;
+        --sage-l: #a8c4a4;
+        --cream: #f5f0e8;
+        --bark: #3d2b1f;
+        --bark-l: #6b4c38;
+        --gold: #c9a85c;
+        --rose: #c97d6e;
+        --white: #fdfaf5;
+        --shadow: 0 4px 28px rgba(61,43,31,.10);
+    }
 
-        <div>
-            <h2 class="mb-1">Gestión de lotes</h2>
-            <p class="text-muted mb-0">
-                Control de inventario y prioridad de salida FEFO.
-            </p>
+
+    /* ─────────────────────────────────────
+           HEADER
+           ───────────────────────────────────── */
+
+    .page-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 1.8rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+        .page-header h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 2.1rem;
+            font-weight: 300;
+            color: var(--bark);
+            line-height: 1;
+        }
+
+            .page-header h1 em {
+                color: var(--sage);
+                font-style: italic;
+            }
+
+        .page-header p {
+            color: var(--bark-l);
+            font-size: .85rem;
+            margin-top: .3rem;
+        }
+
+
+    /* ─────────────────────────────────────
+           BUTTONS
+           ───────────────────────────────────── */
+
+    .btn-primary {
+        background: var(--sage);
+        color: var(--white);
+        border: none;
+        padding: .55rem 1.2rem;
+        border-radius: 8px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .88rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        transition: background .2s, transform .15s;
+    }
+
+        .btn-primary:hover {
+            background: #698f65;
+            transform: translateY(-1px);
+            color: var(--white);
+            text-decoration: none;
+        }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--bark-l);
+        border: 1px solid #d4c9b8;
+        padding: .45rem .9rem;
+        border-radius: 6px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .8rem;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        transition: all .2s;
+    }
+
+        .btn-ghost:hover {
+            border-color: var(--sage);
+            color: var(--sage);
+            text-decoration: none;
+        }
+
+
+    /* ─────────────────────────────────────
+           ALERTS
+           ───────────────────────────────────── */
+
+    .alert {
+        padding: .75rem 1.1rem;
+        border-radius: 10px;
+        font-size: .87rem;
+        margin-bottom: 1.4rem;
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+    }
+
+    .alert-success {
+        background: #eef7ed;
+        color: #2e6b2a;
+        border-left: 4px solid var(--sage);
+    }
+
+    .alert-error {
+        background: #fdf0ee;
+        color: #8a2e22;
+        border-left: 4px solid var(--rose);
+    }
+
+
+    /* ─────────────────────────────────────
+           FILTERS
+           ───────────────────────────────────── */
+
+    .filters-card {
+        background: var(--white);
+        border-radius: 14px;
+        padding: 1.2rem 1.4rem;
+        box-shadow: var(--shadow);
+        margin-bottom: 1.4rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: .3rem;
+    }
+
+        .filter-group label {
+            font-size: .73rem;
+            color: var(--bark-l);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            font-weight: 500;
+        }
+
+    .f-input {
+        background: var(--cream);
+        border: 1px solid #ddd4c4;
+        border-radius: 7px;
+        padding: .45rem .75rem;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .87rem;
+        color: var(--bark);
+        outline: none;
+        transition: border-color .2s;
+        min-width: 260px;
+    }
+
+        .f-input:focus {
+            border-color: var(--sage);
+        }
+
+    .filter-group select.f-input {
+        min-width: 180px;
+    }
+    .filter-actions {
+        display: flex;
+        gap: .6rem;
+        align-items: flex-end;
+        margin-left: auto;
+    }
+
+
+    /* ─────────────────────────────────────
+           FEFO LEGEND
+           ───────────────────────────────────── */
+
+    .fefo-legend {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: .55rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .legend-title {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: var(--bark-l);
+        font-weight: 600;
+        margin-right: .25rem;
+    }
+
+
+    /* ─────────────────────────────────────
+           STATUS BADGES
+           ───────────────────────────────────── */
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        padding: .32rem .72rem;
+        font-size: .72rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .status-stable {
+        background: #e7f0e5;
+        color: #497346;
+    }
+
+    .status-warning {
+        background: #f8edce;
+        color: #836b26;
+    }
+
+    .status-critical {
+        background: #f8ded9;
+        color: #99493c;
+    }
+
+    .status-expired {
+        background: #ddd5cb;
+        color: var(--bark);
+    }
+
+    .status-empty {
+        background: #ece9e4;
+        color: #7b7169;
+    }
+
+
+    /* ─────────────────────────────────────
+           TABLE
+           ───────────────────────────────────── */
+
+    .table-card {
+        background: var(--white);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .table-scroll-wrapper {
+        overflow: auto;
+        max-height: 500px;
+    }
+
+    .table-card table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table-card thead tr {
+        background: var(--cream);
+        border-bottom: 2px solid #ece5da;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .table-card th {
+        padding: .85rem 1rem;
+        text-align: left;
+        font-size: .72rem;
+        font-weight: 600;
+        color: var(--bark-l);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        white-space: nowrap;
+    }
+
+    .table-card td {
+        padding: .9rem 1rem;
+        font-size: .85rem;
+        color: var(--bark);
+        vertical-align: middle;
+        border-bottom: 1px solid #f0e9df;
+        white-space: nowrap;
+    }
+
+    .table-card tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .table-card tbody tr {
+        transition: background .12s;
+    }
+
+        .table-card tbody tr:hover {
+            background: #faf6ef;
+        }
+
+    .sortable-code {
+        cursor: pointer;
+        user-select: none;
+        transition: color .15s, background .15s;
+    }
+
+        .sortable-code:hover {
+            color: var(--sage);
+            background: #ebe4d8;
+        }
+
+    .sortable-content {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+    }
+
+    .sort-icon {
+        font-size: .72rem;
+        color: #a89c8c;
+    }
+
+    .sortable-code.active {
+        color: var(--sage);
+    }
+
+        .sortable-code.active .sort-icon {
+            color: var(--sage);
+        }
+    /* ─────────────────────────────────────
+           ORCHID CELL
+           ───────────────────────────────────── */
+
+    .orchid-cell {
+        display: flex;
+        align-items: center;
+        gap: .7rem;
+    }
+
+    .orchid-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #edf3eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+
+    .orchid-name {
+        font-weight: 500;
+        color: var(--bark);
+    }
+
+    .orchid-type {
+        font-size: .74rem;
+        color: var(--bark-l);
+        margin-top: .1rem;
+    }
+
+
+    /* ─────────────────────────────────────
+           CODE + QUANTITY
+           ───────────────────────────────────── */
+
+    .lot-code {
+        font-weight: 600;
+        color: var(--bark);
+    }
+
+    .quantity-current {
+        font-weight: 700;
+        color: var(--sage);
+    }
+
+    .days-critical {
+        color: var(--rose);
+        font-weight: 600;
+    }
+
+    .days-warning {
+        color: #96772d;
+        font-weight: 600;
+    }
+
+
+    /* ─────────────────────────────────────
+           EMPTY STATE
+           ───────────────────────────────────── */
+
+    .empty-state {
+        text-align: center;
+        padding: 3.5rem 1rem;
+        color: var(--bark-l);
+    }
+
+        .empty-state .e-icon {
+            font-size: 3rem;
+            margin-bottom: .6rem;
+        }
+
+        .empty-state p {
+            font-size: .9rem;
+        }
+
+
+    /* ─────────────────────────────────────
+           FOOTER
+           ───────────────────────────────────── */
+
+    .table-footer {
+        padding: .8rem 1.2rem;
+        border-top: 1px solid #f0e9df;
+        font-size: .78rem;
+        color: var(--bark-l);
+        background: var(--cream);
+    }
+
+
+    @@media(max-width:768px) {
+
+        .filters-card {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-actions {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .f-input {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .table-card {
+            overflow-x: auto;
+        }
+    }
+
+</style>
+
+
+<!-- Header -->
+
+<div class="page-header">
+
+    <div>
+        <h1>
+            Gestión de <em>Lotes</em>
+        </h1>
+
+        <p>
+            Control de inventario y prioridad de salida FEFO
+        </p>
+    </div>
+
+    <a asp-controller="Lots"
+       asp-action="Create"
+       class="btn-primary">
+
+        ＋ Nuevo lote
+
+    </a>
+
+</div>
+
+
+<!-- Alerts -->
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">
+        ✅ @Html.Raw(TempData["Success"])
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-error">
+        ⚠️ @Html.Raw(TempData["Error"])
+    </div>
+}
+
+
+<!-- Filters -->
+
+<form method="get"
+      asp-controller="Lots"
+      asp-action="Index">
+
+    <div class="filters-card">
+
+        <!-- Buscar -->
+
+        <div class="filter-group">
+
+            <label>
+                Buscar lote
+            </label>
+
+            <input type="text"
+                   name="search"
+                   class="f-input"
+                   placeholder="Código, variedad o tipo..."
+                   value="@ViewBag.Search" />
+
         </div>
 
-        <a asp-controller="Lots"
-           asp-action="Create"
-           class="btn btn-primary">
 
-            Registrar nuevo lote
+        <!-- Estado -->
 
-        </a>
+        <div class="filter-group">
+
+            <label>
+                Estado
+            </label>
+
+            <select name="estado"
+                    class="f-input">
+
+                <option value="">
+                    Todos los estados
+                </option>
+
+                <option value="estable"
+                        selected="@(ViewBag.Estado == "estable")">
+                    Estable
+                </option>
+
+                <option value="proximo"
+                        selected="@(ViewBag.Estado == "proximo")">
+                    Próximo
+                </option>
+
+                <option value="critico"
+                        selected="@(ViewBag.Estado == "critico")">
+                    Crítico
+                </option>
+
+                <option value="vencido"
+                        selected="@(ViewBag.Estado == "vencido")">
+                    Vencido
+                </option>
+
+                <option value="agotado"
+                        selected="@(ViewBag.Estado == "agotado")">
+                    Agotado
+                </option>
+
+                <option value="sinfecha"
+                        selected="@(ViewBag.Estado == "sinfecha")">
+                    Sin fecha
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- Acciones -->
+
+        <div class="filter-actions">
+
+            <button type="submit"
+                    class="btn-primary">
+
+                🔍 Filtrar
+
+            </button>
+
+            <a asp-controller="Lots"
+               asp-action="Index"
+               class="btn-ghost">
+
+                ✕ Limpiar
+
+            </a>
+
+        </div>
 
     </div>
 
+</form>
 
-    <!-- Mensaje de éxito -->
-    @if (TempData["Success"] != null)
+
+<!-- FEFO Legend -->
+
+<div class="fefo-legend">
+
+    <span class="legend-title">
+        Prioridad FEFO:
+    </span>
+
+    <span class="status-badge status-stable">
+        ● Estable
+    </span>
+
+    <span class="status-badge status-warning">
+        ● Próximo ≤ 30 días
+    </span>
+
+    <span class="status-badge status-critical">
+        ● Crítico ≤ 7 días
+    </span>
+
+    <span class="status-badge status-expired">
+        ● Vencido
+    </span>
+
+    <span class="status-badge status-empty">
+        ● Agotado
+    </span>
+
+</div>
+
+
+<!-- Table -->
+
+<div class="table-card">
+
+    @if (!Model.Any())
     {
-        <div class="alert alert-success alert-dismissible fade show"
-             role="alert">
+        <div class="empty-state">
 
-            @TempData["Success"]
+            <div class="e-icon">
+                🌸
+            </div>
 
-            <button type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"
-                    aria-label="Cerrar">
-            </button>
+            <p>
+                No se encontraron lotes con los filtros aplicados.
+            </p>
+
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll-wrapper">
+
+            <table>
+
+                <thead>
+                    <tr>
+
+                        <th class="sortable-code">
+                            <span class="sortable-content">
+                                Código
+                                <span class="sort-icon">↕</span>
+                            </span>
+                        </th>
+
+                        <th>Orquídea</th>
+                        <th>Stock</th>
+                        <th>Ingreso</th>
+                        <th>Caducidad</th>
+                        <th>Días restantes</th>
+                        <th>Estado</th>
+
+                    </tr>
+                </thead>
+
+
+                <tbody id="lotsTableBody">
+
+                    @foreach (var lote in Model)
+                    {
+                        string estado;
+                        string statusClass;
+                        string diasTexto = "—";
+                        string diasClass = "";
+
+                        int? diasRestantes = null;
+
+
+                        if (lote.CantidadActual <= 0)
+                        {
+                            estado = "Agotado";
+                            statusClass = "status-empty";
+                        }
+                        else if (!lote.FechaCaducidad.HasValue)
+                        {
+                            estado = "Sin fecha";
+                            statusClass = "status-empty";
+                        }
+                        else
+                        {
+                            diasRestantes =
+                                (lote.FechaCaducidad.Value.Date - hoy).Days;
+
+                            if (diasRestantes < 0)
+                            {
+                                estado = "Vencido";
+                                statusClass = "status-expired";
+
+                                diasTexto =
+                                    $"{Math.Abs(diasRestantes.Value)} días vencido";
+                            }
+                            else if (diasRestantes == 0)
+                            {
+                                estado = "Crítico";
+                                statusClass = "status-critical";
+
+                                diasTexto = "Hoy";
+                                diasClass = "days-critical";
+                            }
+                            else if (diasRestantes <= 7)
+                            {
+                                estado = "Crítico";
+                                statusClass = "status-critical";
+
+                                diasTexto =
+                                    $"{diasRestantes.Value} días";
+
+                                diasClass = "days-critical";
+                            }
+                            else if (diasRestantes <= 30)
+                            {
+                                estado = "Próximo";
+                                statusClass = "status-warning";
+
+                                diasTexto =
+                                    $"{diasRestantes.Value} días";
+
+                                diasClass = "days-warning";
+                            }
+                            else
+                            {
+                                estado = "Estable";
+                                statusClass = "status-stable";
+
+                                diasTexto =
+                                    $"{diasRestantes.Value} días";
+                            }
+                        }
+
+
+                        <tr>
+
+                            <!-- Código -->
+
+                            <td data-sort="@lote.CodigoLote">
+                                <span class="lot-code">
+                                    @lote.CodigoLote
+                                </span>
+                            </td>
+
+
+                            <!-- Orquídea -->
+
+                            <td>
+
+                                <div class="orchid-cell">
+
+                                    <div class="orchid-icon">
+                                        🌸
+                                    </div>
+
+                                    <div>
+
+                                        <div class="orchid-name">
+                                            @(lote.Orquidea?.Variedad ?? "N/A")
+                                        </div>
+
+                                        <div class="orchid-type">
+                                            @(lote.Orquidea?.Tipo ?? "N/A")
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+
+                            <!-- Stock -->
+
+                            <td>
+
+                                <span class="quantity-current">
+                                    @lote.CantidadActual
+                                </span>
+
+                                <span style="color:var(--bark-l);font-size:.76rem;">
+                                    / @lote.CantidadInicial
+                                </span>
+
+                            </td>
+
+
+                            <!-- Ingreso -->
+
+                            <td>
+                                @lote.FechaIngreso.ToString("dd/MM/yyyy")
+                            </td>
+
+
+                            <!-- Caducidad -->
+
+                            <td>
+
+                                @if (lote.FechaCaducidad.HasValue)
+                                {
+                                    @lote.FechaCaducidad.Value.ToString("dd/MM/yyyy")
+                                }
+                                else
+                                {
+                                    <span style="color:var(--bark-l)">
+                                        —
+                                    </span>
+                                }
+
+                            </td>
+
+
+                            <!-- Días -->
+
+                            <td>
+
+                                @if (lote.CantidadActual <= 0)
+                                {
+                                    <span style="color:var(--bark-l)">
+                                        —
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="@diasClass">
+                                        @diasTexto
+                                    </span>
+                                }
+
+                            </td>
+
+
+                            <!-- Estado -->
+
+                            <td>
+
+                                <span class="status-badge @statusClass">
+                                    @estado
+                                </span>
+
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <div class="table-footer">
+
+            @Model.Count() lote(s) encontrado(s)
 
         </div>
     }
 
-
-    <!-- Buscador -->
-    <div class="card border-0 shadow-sm mb-4">
-
-        <div class="card-body">
-
-            <form asp-controller="Lots"
-                  asp-action="Index"
-                  method="get">
-
-                <div class="row g-2 align-items-end">
-
-                    <div class="col-md-8">
-
-                        <label class="form-label fw-semibold">
-                            Buscar lote
-                        </label>
-
-                        <input type="text"
-                               name="search"
-                               value="@ViewBag.Search"
-                               class="form-control"
-                               placeholder="Código, variedad o tipo de orquídea..." />
-
-                    </div>
-
-                    <div class="col-md-4">
-
-                        <div class="d-flex gap-2">
-
-                            <button type="submit"
-                                    class="btn btn-primary flex-grow-1">
-                                Buscar
-                            </button>
-
-                            <a asp-controller="Lots"
-                               asp-action="Index"
-                               class="btn btn-outline-secondary">
-                                Limpiar
-                            </a>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </form>
-
-        </div>
-
-    </div>
-
-
-    <!-- Leyenda FEFO -->
-    <div class="d-flex flex-wrap gap-2 mb-3">
-
-        <span class="badge bg-success">
-            Estable
-        </span>
-
-        <span class="badge bg-warning text-dark">
-            Próximo ≤ 30 días
-        </span>
-
-        <span class="badge bg-danger">
-            Crítico ≤ 7 días
-        </span>
-
-        <span class="badge bg-dark">
-            Vencido
-        </span>
-
-        <span class="badge bg-secondary">
-            Agotado
-        </span>
-
-    </div>
-
-
-    <!-- Tabla -->
-    <div class="card border-0 shadow-sm">
-
-        <div class="card-body p-0">
-
-            <div class="table-responsive">
-
-                <table class="table table-hover align-middle mb-0">
-
-                    <thead class="table-light">
-
-                        <tr>
-                            <th class="ps-4">
-                                Código
-                            </th>
-
-                            <th>
-                                Orquídea
-                            </th>
-
-                            <th>
-                                Tipo
-                            </th>
-
-                            <th class="text-center">
-                                Inicial
-                            </th>
-
-                            <th class="text-center">
-                                Actual
-                            </th>
-
-                            <th>
-                                Ingreso
-                            </th>
-
-                            <th>
-                                Caducidad
-                            </th>
-
-                            <th class="text-center">
-                                Días restantes
-                            </th>
-
-                            <th class="text-center pe-4">
-                                Estado
-                            </th>
-                        </tr>
-
-                    </thead>
-
-
-                    <tbody>
-
-                        @if (Model != null && Model.Any())
-                        {
-                            foreach (var lote in Model)
-                            {
-                                string estado;
-                                string badgeClass;
-                                string rowClass = "";
-                                string diasTexto = "-";
-
-                                int? diasRestantes = null;
-
-                                if (lote.CantidadActual <= 0)
-                                {
-                                    estado = "Agotado";
-                                    badgeClass = "bg-secondary";
-                                }
-                                else if (!lote.FechaCaducidad.HasValue)
-                                {
-                                    estado = "Sin fecha";
-                                    badgeClass = "bg-secondary";
-                                }
-                                else
-                                {
-                                    diasRestantes =
-                                        (lote.FechaCaducidad.Value.Date - hoy).Days;
-
-                                    diasTexto = diasRestantes.Value.ToString();
-
-                                    if (diasRestantes < 0)
-                                    {
-                                        estado = "Vencido";
-                                        badgeClass = "bg-dark";
-                                        rowClass = "table-secondary";
-                                    }
-                                    else if (diasRestantes <= 7)
-                                    {
-                                        estado = "Crítico";
-                                        badgeClass = "bg-danger";
-                                        rowClass = "table-danger";
-                                    }
-                                    else if (diasRestantes <= 30)
-                                    {
-                                        estado = "Próximo";
-                                        badgeClass = "bg-warning text-dark";
-                                        rowClass = "table-warning";
-                                    }
-                                    else
-                                    {
-                                        estado = "Estable";
-                                        badgeClass = "bg-success";
-                                    }
-                                }
-
-                                <tr class="@rowClass">
-
-                                    <!-- Código -->
-                                    <td class="ps-4 fw-semibold">
-                                        @lote.CodigoLote
-                                    </td>
-
-
-                                    <!-- Variedad -->
-                                    <td>
-                                        @(lote.Orquidea?.Variedad ?? "N/A")
-                                    </td>
-
-
-                                    <!-- Tipo -->
-                                    <td>
-                                        @(lote.Orquidea?.Tipo ?? "N/A")
-                                    </td>
-
-
-                                    <!-- Cantidad inicial -->
-                                    <td class="text-center">
-                                        @lote.CantidadInicial
-                                    </td>
-
-
-                                    <!-- Cantidad actual -->
-                                    <td class="text-center">
-
-                                        <span class="fw-semibold">
-                                            @lote.CantidadActual
-                                        </span>
-
-                                    </td>
-
-
-                                    <!-- Fecha ingreso -->
-                                    <td>
-                                        @lote.FechaIngreso.ToString("dd/MM/yyyy")
-                                    </td>
-
-
-                                    <!-- Fecha caducidad -->
-                                    <td>
-
-                                        @if (lote.FechaCaducidad.HasValue)
-                                        {
-                                            @lote.FechaCaducidad.Value.ToString("dd/MM/yyyy")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">
-                                                No definida
-                                            </span>
-                                        }
-
-                                    </td>
-
-
-                                    <!-- Días restantes -->
-                                    <td class="text-center">
-
-                                        @if (diasRestantes.HasValue)
-                                        {
-                                            if (diasRestantes < 0)
-                                            {
-                                                <span>
-                                                    @Math.Abs(diasRestantes.Value) días vencido
-                                                </span>
-                                            }
-                                            else if (diasRestantes == 0)
-                                            {
-                                                <strong>
-                                                    Hoy
-                                                </strong>
-                                            }
-                                            else
-                                            {
-                                                <span>
-                                                    @diasRestantes días
-                                                </span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">
-                                                -
-                                            </span>
-                                        }
-
-                                    </td>
-
-
-                                    <!-- Estado -->
-                                    <td class="text-center pe-4">
-
-                                        <span class="badge @badgeClass">
-                                            @estado
-                                        </span>
-
-                                    </td>
-
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr>
-
-                                <td colspan="9"
-                                    class="text-center py-5 text-muted">
-
-                                    No se encontraron lotes registrados.
-
-                                </td>
-
-                            </tr>
-                        }
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-    </div>
-
 </div>
+@section Scripts {
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const header = document.querySelector(".sortable-code");
+            const tbody = document.getElementById("lotsTableBody");
+
+            if (!header || !tbody) {
+                return;
+            }
+
+            let direction = "asc";
+
+
+            header.addEventListener("click", function() {
+
+                const rows = Array.from(
+                    tbody.querySelectorAll("tr")
+                );
+
+
+                rows.sort((rowA, rowB) => {
+
+                    const codigoA =
+                        rowA.children[0].dataset.sort ?? "";
+
+                    const codigoB =
+                        rowB.children[0].dataset.sort ?? "";
+
+
+                    const comparison =
+                        codigoA.localeCompare(
+                            codigoB,
+                            "es",
+                            {
+                                numeric: true,
+                                sensitivity: "base"
+                            }
+                        );
+
+
+                    return direction === "asc"
+                        ? comparison
+                        : -comparison;
+                });
+
+
+                rows.forEach(row => {
+                    tbody.appendChild(row);
+                });
+
+
+                header.classList.add("active");
+
+                const icon =
+                    header.querySelector(".sort-icon");
+
+                if (direction === "asc") {
+
+                    icon.textContent = "↑";
+                    direction = "desc";
+
+                }
+                else {
+
+                    icon.textContent = "↓";
+                    direction = "asc";
+
+                }
+
+            });
+
+        });
+
+    </script>
+
+}

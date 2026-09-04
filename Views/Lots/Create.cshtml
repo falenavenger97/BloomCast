@@ -1,152 +1,334 @@
 @model BloomCast.Models.LoteCreateViewModel
 
 @{
-    ViewData["Title"] = "Registrar lote";
+    ViewData["Title"] = "Nuevo lote";
 }
 
-<div class="container py-4">
+<style>
+    :root {
+        --sage: #7a9b76;
+        --sage-l: #a8c4a4;
+        --cream: #f5f0e8;
+        --bark: #3d2b1f;
+        --bark-l: #6b4c38;
+        --gold: #c9a85c;
+        --rose: #c97d6e;
+        --white: #fdfaf5;
+        --shadow: 0 4px 28px rgba(61,43,31,.10);
+    }
 
-    <!-- Encabezado -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-1">Registrar nuevo lote</h2>
-            <p class="text-muted mb-0">
-                Registra el ingreso de un nuevo lote de orquídeas al inventario.
-            </p>
-        </div>
+    .form-card {
+        background: var(--white);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
 
-        <a asp-controller="Lots"
-           asp-action="Index"
-           class="btn btn-outline-secondary">
-            Volver
-        </a>
-    </div>
+    .form-section {
+        padding: 1.8rem;
+        border-bottom: 1px solid #f0e9df;
+    }
 
+        .form-section:last-of-type {
+            border-bottom: none;
+        }
 
-    <div class="row justify-content-center">
-        <div class="col-lg-7 col-xl-6">
+    .section-title {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1.3rem;
+        font-weight: 500;
+        color: var(--bark);
+        margin-bottom: 1.2rem;
+        padding-bottom: .5rem;
+        border-bottom: 2px solid var(--sage-l);
+        display: inline-block;
+    }
 
-            <div class="card shadow-sm border-0">
-                <div class="card-body p-4">
+    .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
 
-                    <form asp-controller="Lots"
-                          asp-action="Create"
-                          method="post">
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: .4rem;
+    }
 
-                        @Html.AntiForgeryToken()
+        .field label {
+            font-size: .8rem;
+            font-weight: 600;
+            color: var(--bark-l);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
 
-                        <!-- Errores generales -->
-                        <div asp-validation-summary="ModelOnly"
-                             class="alert alert-danger"
-                             role="alert">
-                        </div>
+    .field-required::after {
+        content: " *";
+        color: var(--rose);
+    }
 
+    .f-input {
+        background: var(--cream);
+        border: 1px solid #ddd4c4;
+        border-radius: 8px;
+        padding: .6rem .8rem;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .87rem;
+        color: var(--bark);
+        outline: none;
+        transition: all .2s;
+        width: 100%;
+    }
 
-                        <!-- Orquídea -->
-                        <div class="mb-4">
+        .f-input:focus {
+            border-color: var(--sage);
+            box-shadow: 0 0 0 2px rgba(122,155,118,.1);
+        }
 
-                            <label asp-for="OrquideaId"
-                                   class="form-label fw-semibold">
-                                Orquídea
-                            </label>
+    .field-error {
+        color: var(--rose);
+        font-size: .75rem;
+        margin-top: .2rem;
+    }
 
-                            <select asp-for="OrquideaId"
-                                    asp-items="ViewBag.Orquideas"
-                                    class="form-select">
+    .info-box {
+        background: var(--cream);
+        border: 1px solid #e5dccf;
+        border-radius: 12px;
+        padding: 1.2rem 1.3rem;
+        margin-top: 1.5rem;
+    }
 
-                                <option value="">
-                                    -- Selecciona una orquídea --
-                                </option>
+    .info-box-title {
+        color: var(--bark);
+        font-weight: 600;
+        font-size: .9rem;
+        margin-bottom: .7rem;
+    }
 
-                            </select>
+    .info-box p {
+        color: var(--bark-l);
+        font-size: .82rem;
+        margin-bottom: .6rem;
+    }
 
-                            <span asp-validation-for="OrquideaId"
-                                  class="text-danger small">
-                            </span>
+    .info-list {
+        list-style: none;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: .55rem 1.5rem;
+        margin: 0;
+        padding: 0;
+    }
 
-                            <div class="form-text">
-                                Selecciona la variedad correspondiente al lote recibido.
-                            </div>
-                        </div>
+        .info-list li {
+            color: var(--bark-l);
+            font-size: .82rem;
+            display: flex;
+            align-items: center;
+            gap: .45rem;
+        }
 
+            .info-list li::before {
+                content: "✓";
+                color: var(--sage);
+                font-weight: 700;
+            }
 
-                        <!-- Cantidad -->
-                        <div class="mb-4">
+    .form-footer {
+        padding: 1.2rem 1.8rem;
+        background: var(--cream);
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        border-top: 1px solid #e0d8cc;
+    }
 
-                            <label asp-for="CantidadActual"
-                                   class="form-label fw-semibold">
-                                Cantidad actual
-                            </label>
+    .btn-primary {
+        background: var(--sage);
+        color: var(--white);
+        border: none;
+        padding: .6rem 1.4rem;
+        border-radius: 8px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .88rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        transition: all .2s;
+    }
 
-                            <input asp-for="CantidadActual"
-                                   type="number"
-                                   min="1"
-                                   step="1"
-                                   class="form-control"
-                                   placeholder="Ej. 20" />
+        .btn-primary:hover {
+            background: #698f65;
+            transform: translateY(-1px);
+            color: var(--white);
+            text-decoration: none;
+        }
 
-                            <span asp-validation-for="CantidadActual"
-                                  class="text-danger small">
-                            </span>
+    .btn-ghost {
+        background: transparent;
+        color: var(--bark-l);
+        border: 1px solid #d4c9b8;
+        padding: .55rem 1.2rem;
+        border-radius: 8px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .88rem;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        transition: all .2s;
+    }
 
-                            <div class="form-text">
-                                Número de unidades recibidas en este lote.
-                            </div>
-                        </div>
+        .btn-ghost:hover {
+            border-color: var(--sage);
+            color: var(--sage);
+            text-decoration: none;
+        }
 
+    .alert-error {
+        background: #fdf0ee;
+        color: #8a2e22;
+        border-left: 4px solid var(--rose);
+        padding: .75rem 1.1rem;
+        border-radius: 10px;
+        font-size: .87rem;
+        margin-bottom: 1.4rem;
+    }
 
-                        <!-- Información automática -->
-                        <div class="alert alert-light border mb-4">
+    @@media(max-width:768px) {
+        .grid-2 {
+            grid-template-columns: 1fr;
+        }
 
-                            <div class="fw-semibold mb-2">
-                                Información generada por BloomCast
-                            </div>
+        .info-list {
+            grid-template-columns: 1fr;
+        }
 
-                            <small class="text-muted">
-                                Al registrar el lote, BloomCast generará automáticamente:
-                            </small>
+        .form-section {
+            padding: 1.2rem;
+        }
+    }
+</style>
 
-                            <ul class="small text-muted mb-0 mt-2">
-                                <li>Código único del lote.</li>
-                                <li>Cantidad inicial.</li>
-                                <li>Fecha de ingreso.</li>
-                                <li>Fecha de floración.</li>
-                                <li>
-                                    Fecha estimada de caducidad según la vida
-                                    comercial de la orquídea.
-                                </li>
-                            </ul>
+<form method="post" asp-action="Create">
+    @Html.AntiForgeryToken()
 
-                        </div>
+    <div class="form-card">
 
+        <div class="form-section">
 
-                        <!-- Botones -->
-                        <div class="d-flex justify-content-end gap-2">
+            <div class="section-title">
+                🌸 Información del lote
+            </div>
 
-                            <a asp-controller="Lots"
-                               asp-action="Index"
-                               class="btn btn-outline-secondary">
-                                Cancelar
-                            </a>
-
-                            <button type="submit"
-                                    class="btn btn-primary">
-                                Registrar lote
-                            </button>
-
-                        </div>
-
-                    </form>
-
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div asp-validation-summary="ModelOnly"
+                     class="alert-error">
                 </div>
+            }
+
+            <div class="grid-2">
+
+                <div class="field">
+                    <label asp-for="OrquideaId"
+                           class="field-required">
+                        Orquídea
+                    </label>
+
+                    <select asp-for="OrquideaId"
+                            asp-items="ViewBag.Orquideas"
+                            class="f-input">
+
+                        <option value="">
+                            — Seleccionar orquídea —
+                        </option>
+
+                    </select>
+
+                    <span asp-validation-for="OrquideaId"
+                          class="field-error">
+                    </span>
+                </div>
+
+
+                <div class="field">
+                    <label asp-for="CantidadActual"
+                           class="field-required">
+                        Cantidad recibida
+                    </label>
+
+                    <input asp-for="CantidadActual"
+                           type="number"
+                           min="1"
+                           step="1"
+                           class="f-input"
+                           placeholder="Ej. 20" />
+
+                    <span asp-validation-for="CantidadActual"
+                          class="field-error">
+                    </span>
+                </div>
+
+            </div>
+
+
+            <div class="info-box">
+
+                <div class="info-box-title">
+                    🤖 BloomCast completará automáticamente
+                </div>
+
+                <p>
+                    Los siguientes datos serán calculados al registrar
+                    el nuevo lote:
+                </p>
+
+                <ul class="info-list">
+                    <li>Código único del lote</li>
+                    <li>Cantidad inicial</li>
+                    <li>Fecha de ingreso</li>
+                    <li>Fecha de floración</li>
+                    <li>Vida comercial según orquídea</li>
+                    <li>Fecha estimada de caducidad</li>
+                </ul>
+
             </div>
 
         </div>
+
+
+        <div class="form-footer">
+
+            <a asp-action="Index"
+               class="btn-ghost">
+                ← Cancelar
+            </a>
+
+            <button type="submit"
+                    class="btn-primary">
+                ✓ Registrar lote
+            </button>
+
+        </div>
+
     </div>
-
-</div>
-
+</form>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
 }

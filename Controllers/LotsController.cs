@@ -16,8 +16,16 @@ namespace BloomCast.Controllers
         {
             _db = db;
         }
-        public async Task<IActionResult> Index(string? search)
+
+        public async Task<IActionResult> Index(
+            string? search,
+            string? estado)
         {
+            var hoy = DateTime.UtcNow.Date;
+
+            var limiteCritico = hoy.AddDays(8);
+            var limiteProximo = hoy.AddDays(31);
+
             var query = _db.Lotes
                 .Include(l => l.Orquidea)
                 .AsNoTracking()
@@ -33,12 +41,79 @@ namespace BloomCast.Controllers
                     l.Orquidea.Tipo.ToLower().Contains(search));
             }
 
+            if (!string.IsNullOrWhiteSpace(estado))
+            {
+                switch (estado.ToLower())
+                {
+                    case "agotado":
+
+                        query = query.Where(l =>
+                            l.CantidadActual <= 0);
+
+                        break;
+
+
+                    case "vencido":
+
+                        query = query.Where(l =>
+                            l.CantidadActual > 0 &&
+                            l.FechaCaducidad.HasValue &&
+                            l.FechaCaducidad.Value < hoy);
+
+                        break;
+
+
+                    case "critico":
+
+                        query = query.Where(l =>
+                            l.CantidadActual > 0 &&
+                            l.FechaCaducidad.HasValue &&
+                            l.FechaCaducidad.Value >= hoy &&
+                            l.FechaCaducidad.Value < limiteCritico);
+
+                        break;
+
+
+                    case "proximo":
+
+                        query = query.Where(l =>
+                            l.CantidadActual > 0 &&
+                            l.FechaCaducidad.HasValue &&
+                            l.FechaCaducidad.Value >= limiteCritico &&
+                            l.FechaCaducidad.Value < limiteProximo);
+
+                        break;
+
+
+                    case "estable":
+
+                        query = query.Where(l =>
+                            l.CantidadActual > 0 &&
+                            l.FechaCaducidad.HasValue &&
+                            l.FechaCaducidad.Value >= limiteProximo);
+
+                        break;
+
+
+                    case "sinfecha":
+
+                        query = query.Where(l =>
+                            l.CantidadActual > 0 &&
+                            !l.FechaCaducidad.HasValue);
+
+                        break;
+                }
+            }
+
+
             var lotes = await query
                 .OrderBy(l => l.FechaCaducidad)
                 .ThenByDescending(l => l.FechaIngreso)
                 .ToListAsync();
 
+
             ViewBag.Search = search;
+            ViewBag.Estado = estado;
 
             return View(lotes);
         }
