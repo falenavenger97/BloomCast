@@ -1,0 +1,49 @@
+﻿@model BloomCast.Models.Venta
+
+<div style="text-align: left;">
+    <!-- Información de la venta -->
+    <div style="background: var(--cream); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+        <h4 style="color: var(--bark); margin-bottom: 0.5rem;">📄 Información General</h4>
+        <p style="margin: 0.3rem 0;"><strong>Venta #:</strong> @Model.Id</p>
+        <p style="margin: 0.3rem 0;"><strong>Fecha:</strong> @Model.FechaVenta.ToString("dd/MM/yyyy HH:mm")</p>
+        <p style="margin: 0.3rem 0;"><strong>Vendedor:</strong> @(Model.Usuario?.NombreCompleto ?? "Usuario #" + Model.UsuarioId)</p>
+        <p style="margin: 0.3rem 0;"><strong>Total:</strong> <span style="color: var(--sage); font-weight: bold;">Bs. @Model.Total.ToString("N2")</span></p>
+    </div>
+
+    <!-- Detalle de productos -->
+    <h4 style="color: var(--bark); margin-bottom: 0.8rem;">🌿 Productos Vendidos</h4>
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: var(--cream); border-bottom: 2px solid var(--sage-l);">
+                    <th style="padding: 0.5rem; text-align: left;">Producto</th>
+                    <th style="padding: 0.5rem; text-align: center;">Cantidad</th>
+                    <th style="padding: 0.5rem; text-align: right;">Precio Unit.</th>
+                    <th style="padding: 0.5rem; text-align: right;">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var detalle in Model.Detalles)
+                {
+                    <tr style="border-bottom: 1px solid var(--cream);">
+                        <td style="padding: 0.5rem;">
+                            <strong>@(detalle.Lote?.Orquidea?.Variedad ?? "N/A")</strong><br />
+                            <small style="color: var(--bark-l);">Lote: @(detalle.Lote?.CodigoLote ?? "N/A")</small>
+                        </td>
+                        <td style="padding: 0.5rem; text-align: center;">@detalle.Cantidad</td>
+                        <td style="padding: 0.5rem; text-align: right;">Bs. @detalle.PrecioUnitario.ToString("N2")</td>
+                        <td style="padding: 0.5rem; text-align: right; font-weight: 500;">Bs. @detalle.Subtotal.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr style="background: var(--cream); border-top: 2px solid var(--sage-l);">
+                    <td colspan="3" style="padding: 0.8rem 0.5rem; text-align: right; font-weight: bold;">TOTAL:</td>
+                    <td style="padding: 0.8rem 0.5rem; text-align: right; font-weight: bold; color: var(--sage);">
+                        Bs. @Model.Total.ToString("N2")
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>

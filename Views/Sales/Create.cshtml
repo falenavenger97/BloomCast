@@ -1,0 +1,839 @@
+@model BloomCast.Models.SaleCreateViewModel
+
+@{
+    ViewData["Title"] = "Nueva venta";
+
+    // Garantizar al menos una fila
+    if (Model.Items == null || !Model.Items.Any())
+    {
+        Model.Items = new List<BloomCast.Models.SaleItemViewModel>
+        {
+            new BloomCast.Models.SaleItemViewModel { Cantidad = 1 }
+        };
+    }
+}
+
+<style>
+    :root {
+        --sage: #7a9b76;
+        --sage-l: #a8c4a4;
+        --cream: #f5f0e8;
+        --bark: #3d2b1f;
+        --bark-l: #6b4c38;
+        --gold: #c9a85c;
+        --rose: #c97d6e;
+        --white: #fdfaf5;
+        --shadow: 0 4px 28px rgba(61,43,31,.10);
+    }
+
+    .form-card {
+        background: var(--white);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .form-section {
+        padding: 1.8rem;
+        border-bottom: 1px solid #f0e9df;
+    }
+
+        .form-section:last-of-type {
+            border-bottom: none;
+        }
+
+    .section-title {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1.3rem;
+        font-weight: 500;
+        color: var(--bark);
+        margin-bottom: 1.2rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--sage-l);
+        display: inline-block;
+    }
+
+    .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+        .field label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--bark-l);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+    .field-required::after {
+        content: " *";
+        color: var(--rose);
+    }
+
+    .f-input {
+        background: var(--cream);
+        border: 1px solid #ddd4c4;
+        border-radius: 8px;
+        padding: 0.6rem 0.8rem;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.87rem;
+        color: var(--bark);
+        outline: none;
+        transition: all 0.2s;
+        width: 100%;
+    }
+
+        .f-input:focus {
+            border-color: var(--sage);
+            box-shadow: 0 0 0 2px rgba(122, 155, 118, 0.1);
+        }
+
+    .input-error {
+        border-color: var(--rose);
+    }
+
+    .field-error {
+        color: var(--rose);
+        font-size: 0.75rem;
+        margin-top: 0.2rem;
+    }
+
+    /* Tabla de productos */
+    .product-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.2rem;
+    }
+
+        .product-table th {
+            background: var(--cream);
+            padding: 0.8rem;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--bark-l);
+            text-transform: uppercase;
+            border-bottom: 2px solid #ece5da;
+        }
+
+        .product-table td {
+            padding: 0.8rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #f0e9df;
+        }
+
+        .product-table select,
+        .product-table input {
+            width: 100%;
+            min-width: 120px;
+        }
+
+    .subtotal {
+        font-weight: 600;
+        color: var(--sage);
+        white-space: nowrap;
+    }
+
+    .btn-remove {
+        background: transparent;
+        border: none;
+        color: var(--rose);
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+        .btn-remove:hover {
+            background: rgba(201, 125, 110, 0.1);
+            transform: scale(1.1);
+        }
+
+    .btn-add {
+        background: transparent;
+        border: 1px dashed var(--sage);
+        color: var(--sage);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: all 0.2s;
+        margin-top: 0.5rem;
+    }
+
+        .btn-add:hover {
+            background: var(--cream);
+            border-color: var(--sage);
+        }
+
+    /* Resumen */
+    .summary-box {
+        background: var(--cream);
+        border-radius: 12px;
+        padding: 1.2rem;
+        margin-top: 1.5rem;
+        max-width: 300px;
+        margin-left: auto;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.6rem 0;
+        font-size: 0.95rem;
+    }
+
+        .summary-row:last-child {
+            border-top: 2px solid #ddd4c4;
+            margin-top: 0.3rem;
+            padding-top: 0.8rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--bark);
+        }
+
+    /* Footer */
+    .form-footer {
+        padding: 1.2rem 1.8rem;
+        background: var(--cream);
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        border-top: 1px solid #e0d8cc;
+    }
+
+    .btn-primary {
+        background: var(--sage);
+        color: var(--white);
+        border: none;
+        padding: 0.6rem 1.4rem;
+        border-radius: 8px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.88rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: all 0.2s;
+    }
+
+        .btn-primary:hover {
+            background: #698f65;
+            transform: translateY(-1px);
+        }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--bark-l);
+        border: 1px solid #d4c9b8;
+        padding: 0.55rem 1.2rem;
+        border-radius: 8px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.88rem;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: all 0.2s;
+    }
+
+        .btn-ghost:hover {
+            border-color: var(--sage);
+            color: var(--sage);
+        }
+
+    @@media (max-width: 768px) {
+        .grid-2 {
+            grid-template-columns: 1fr;
+        }
+
+        .product-table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .form-section {
+            padding: 1.2rem;
+        }
+
+        .summary-box {
+            max-width: 100%;
+        }
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator {
+        background: var(--sage);
+        padding: 0.2rem;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+</style>
+
+<form method="post" asp-action="Create">
+    @Html.AntiForgeryToken()
+
+    <div class="form-card">
+
+        <!-- Información general -->
+        <div class="form-section">
+            <div class="section-title">🧾 Información de la venta</div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label asp-for="UsuarioId" class="field-required">Vendedor</label>
+                    <select asp-for="UsuarioId"
+                            asp-items="ViewBag.Usuarios"
+                            class="f-input">
+                        <option value="">— Seleccionar usuario —</option>
+                    </select>
+                    <span asp-validation-for="UsuarioId" class="field-error"></span>
+                </div>
+
+                <div class="field">
+                    <label asp-for="Fechaventa" class="field-required">Fecha y hora de venta</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="date"
+                               id="fechaDate"
+                               class="f-input"
+                               style="flex: 2"
+                               value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                        <input type="time"
+                               id="fechaTime"
+                               class="f-input"
+                               style="flex: 1"
+                               value="@DateTime.Now.ToString("HH:mm")"
+                               step="60" />
+                        <input type="hidden" asp-for="Fechaventa" id="fechaCompleta" />
+                    </div>
+                    <span asp-validation-for="Fechaventa" class="field-error"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detalle de productos -->
+        <div class="form-section">
+            <div class="section-title">📦 Productos vendidos</div>
+
+            <table class="product-table" id="productsTable">
+                <thead>
+                    <tr>
+                        <th style="width: 40%">Lote / Producto</th>
+                        <th style="width: 15%">Cantidad</th>
+                        <th style="width: 20%">Precio Unitario (Bs)</th>
+                        <th style="width: 15%">Subtotal (Bs)</th>
+                        <th style="width: 10%"></th>
+                    </tr>
+                </thead>
+                <tbody id="productosBody">
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr class="producto-row">
+                            <td>
+                                <select name="Items[@i].LoteId" 
+                                        class="f-input lote-select"
+                                        data-index="@i">
+                                    <option value="">Seleccionar lote</option>
+                                    @if (ViewBag.LotesList != null)
+                                    {
+                                        foreach (var lote in ViewBag.LotesList)
+                                        {
+                                            <option value="@lote.Id" 
+                                                    data-precio="@lote.PrecioBase"
+                                                    data-stock="@lote.Stock"
+                                                    selected="@(Model.Items[i].LoteId == lote.Id)">
+                                                @lote.Text
+                                            </option>
+                                        }
+                                    }
+                                </select>
+                                <span asp-validation-for="Items[i].LoteId" class="field-error"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].Cantidad" 
+                                       type="number" 
+                                       min="1" 
+                                       value="@(Model.Items[i].Cantidad > 0 ? Model.Items[i].Cantidad : 1)"
+                                       class="f-input cantidad" />
+                                <span asp-validation-for="Items[i].Cantidad" class="field-error"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Items[i].PrecioUnitario" 
+                                       type="number" 
+                                       step="0.01" 
+                                       min="0" 
+                                       readonly
+                                       class="f-input precio-unitario" />
+                                <span asp-validation-for="Items[i].PrecioUnitario" class="field-error"></span>
+                            </td>
+                            <td>
+                                <span class="subtotal">Bs. 0.00</span>
+                            </td>
+                            <td>
+                                <button type="button" class="btn-remove" onclick="eliminarFila(this)">✕</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <button type="button" class="btn-add" onclick="agregarFila()">
+                ＋ Agregar producto
+            </button>
+
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span id="subtotalGeneral">Bs. 0.00</span>
+                </div>
+                <div class="summary-row">
+                    <span>Total</span>
+                    <span id="totalGeneral">Bs. 0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="form-footer">
+            <a asp-action="Index" class="btn-ghost">← Cancelar</a>
+            <button type="submit" class="btn-primary">✓ Registrar venta</button>
+        </div>
+
+    </div>
+</form>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+
+    // Reemplaza TODO el script existente con este código completo
+
+    // Reemplaza TODO el script existente con este código completo
+
+    <script>
+        // Datos originales de lotes
+        const lotesDataOriginal = @Html.Raw(Json.Serialize(ViewBag.LotesList));
+        let lotesData = [...lotesDataOriginal];
+        let contadorFilas = document.querySelectorAll('#productosBody tr').length;
+        if (contadorFilas === 0) contadorFilas = 1;
+
+        // Función para obtener los IDs de lotes ya seleccionados
+        function getSelectedLoteIds() {
+        const selectedIds = [];
+        const rows = document.querySelectorAll('#productosBody .producto-row');
+
+        rows.forEach(row => {
+        const select = row.querySelector('.lote-select');
+        if (select && select.value) {
+        selectedIds.push(parseInt(select.value));
+        }
+        });
+
+        return selectedIds;
+        }
+
+        // Función para obtener cantidad de lotes disponibles
+        function getAvailableLotesCount() {
+        const selectedIds = getSelectedLoteIds();
+        let availableCount = 0;
+
+        if (lotesData && lotesData.length > 0) {
+        for (let i = 0; i < lotesData.length; i++) {
+        const loteId = parseInt(lotesData[i].id);
+        if (!selectedIds.includes(loteId)) {
+        availableCount++;
+        }
+        }
+        }
+
+        return availableCount;
+        }
+
+        // Función para actualizar el estado del botón "Agregar producto"
+        function updateAddButtonState() {
+        const addButton = document.querySelector('.btn-add');
+        if (!addButton) return;
+
+        const availableCount = getAvailableLotesCount();
+        const rows = document.querySelectorAll('#productosBody .producto-row');
+        const hasEmptyRow = Array.from(rows).some(row => {
+        const select = row.querySelector('.lote-select');
+        return !select || !select.value;
+        });
+
+        // Deshabilitar si:
+        // 1. No hay lotes disponibles, o
+        // 2. Ya existe una fila vacía (sin lote seleccionado)
+        const shouldDisable = availableCount === 0 || hasEmptyRow;
+
+        if (shouldDisable) {
+        addButton.disabled = true;
+        addButton.style.opacity = '0.5';
+        addButton.style.cursor = 'not-allowed';
+
+        if (availableCount === 0) {
+        addButton.title = 'No hay más lotes disponibles';
+        } else if (hasEmptyRow) {
+        addButton.title = 'Complete o elimine la fila vacía antes de agregar otra';
+        }
+        } else {
+        addButton.disabled = false;
+        addButton.style.opacity = '1';
+        addButton.style.cursor = 'pointer';
+        addButton.title = 'Agregar producto';
+        }
+        }
+
+        // Función para construir opciones excluyendo lotes ya seleccionados
+        function buildLoteOptions(selectedValue = '', excludeCurrentRow = true, currentSelectElement = null) {
+        const selectedIds = getSelectedLoteIds();
+        let html = '<option value="">-- Seleccionar lote --</option>';  // ← faltaba esta línea
+
+        let excludeId = null;
+        if (excludeCurrentRow && currentSelectElement && currentSelectElement.value) {
+        excludeId = parseInt(currentSelectElement.value);
+        }
+
+        if (lotesData && lotesData.length > 0) {
+        for (let i = 0; i < lotesData.length; i++) {
+        const lote = lotesData[i];
+        const loteId = parseInt(lote.id);
+
+        const isSelectedElsewhere = selectedIds.includes(loteId) &&
+        (excludeId === null || loteId !== excludeId);
+
+        if (!isSelectedElsewhere) {
+        const selected = (selectedValue && selectedValue.toString() === lote.id.toString()) ? 'selected' : '';
+        html += `<option value="${lote.id}"
+        data-precio="${lote.precioBase}"
+        data-stock="${lote.stock}"
+        ${selected}>${lote.text}</option>`;  // ← data-stock incluido aquí
+        }
+        }
+        } else {
+        html += '<option disabled>⚠️ No hay lotes disponibles</option>';
+        }
+
+        if (html === '<option value="">-- Seleccionar lote --</option>') {
+        html += '<option disabled>⚠️ No hay más lotes disponibles</option>';
+        }
+
+        return html;
+        }
+
+        // Actualizar todas las listas de lotes
+        function updateAllLoteLists() {
+        const rows = document.querySelectorAll('#productosBody .producto-row');
+
+        rows.forEach(row => {
+        const select = row.querySelector('.lote-select');
+        if (select) {
+        const currentValue = select.value;
+        const newHtml = buildLoteOptions(currentValue, true, select);
+        select.innerHTML = newHtml;
+
+        // Restaurar el valor seleccionado si aún existe
+        if (currentValue) {
+        select.value = currentValue;
+        }
+        }
+        });
+
+        // Actualizar estado del botón
+        updateAddButtonState();
+
+        // Recalcular totales después de actualizar
+        calcularTotal();
+        }
+
+        // Función para agregar nueva fila
+        function agregarFila() {
+        // Verificar si hay lotes disponibles
+        const availableCount = getAvailableLotesCount();
+        if (availableCount === 0) {
+        alert('⚠️ No hay más lotes disponibles para agregar.');
+        return;
+        }
+
+        // Verificar que no haya filas vacías
+        const rows = document.querySelectorAll('#productosBody .producto-row');
+        const hasEmptyRow = Array.from(rows).some(row => {
+        const select = row.querySelector('.lote-select');
+        return !select || !select.value;
+        });
+
+        if (hasEmptyRow) {
+        alert('⚠️ Complete o elimine la fila vacía antes de agregar un nuevo producto.');
+        return;
+        }
+
+        const tbody = document.getElementById('productosBody');
+        const idx = contadorFilas;
+
+        const newRow = document.createElement('tr');
+        newRow.className = 'producto-row';
+        newRow.innerHTML = `
+        <td>
+        <select name="Items[${idx}].LoteId"
+        class="f-input lote-select"
+        data-index="${idx}"
+        onchange="handleLoteChange(this)">
+        ${buildLoteOptions('', false, null)}
+        </select>
+        <span class="field-error"></span>
+        </td>
+        <td>
+        <input type="number"
+        name="Items[${idx}].Cantidad"
+        value="1"
+        min="1"
+        step="1"
+        class="f-input cantidad"
+        onchange="calcularTotal()" />
+        <span class="field-error"></span>
+        </td>
+        <td>
+        <input type="number"
+        step="0.01"
+        min="0"
+        name="Items[${idx}].PrecioUnitario"
+        class="f-input precio-unitario"
+        readonly
+        onchange="calcularTotal()" />
+        <span class="field-error"></span>
+        </td>
+        <td>
+        <span class="subtotal">Bs. 0.00</span>
+        </td>
+        <td>
+        <button type="button" class="btn-remove" onclick="eliminarFila(this)">✕</button>
+        </td>
+        `;
+
+        tbody.appendChild(newRow);
+        contadorFilas++;
+        calcularTotal();
+
+        // Actualizar todas las listas después de agregar
+        updateAllLoteLists();
+        }
+
+        // Manejar cambio de lote
+        // Reemplazar handleLoteChange completo:
+        function handleLoteChange(select) {
+        const selectedOption = select.options[select.selectedIndex];
+        const row = select.closest('tr');
+        const precioInput = row.querySelector('.precio-unitario');
+        const cantidadInput = row.querySelector('.cantidad');
+
+        if (!selectedOption || !selectedOption.value) {
+        if (precioInput) precioInput.value = '';
+        if (cantidadInput) {
+        cantidadInput.value = 1;
+        cantidadInput.removeAttribute('max');
+        }
+        calcularTotal();
+        updateAllLoteLists();
+        return;
+        }
+
+        const precioBase = selectedOption.getAttribute('data-precio');
+        const stockDisponible = parseInt(selectedOption.getAttribute('data-stock')) || 999;
+
+        // Auto-completar precio (siempre, ya que es readonly)
+        if (precioInput) precioInput.value = precioBase;
+
+        // Limitar cantidad al stock disponible
+        if (cantidadInput) {
+        cantidadInput.setAttribute('max', stockDisponible);
+        if (parseInt(cantidadInput.value) > stockDisponible) {
+        cantidadInput.value = stockDisponible;
+        }
+        }
+
+        calcularTotal();
+        updateAllLoteLists();
+        }
+
+        // Función para eliminar fila
+        function eliminarFila(btn) {
+        const tbody = document.getElementById('productosBody');
+        const rows = tbody.querySelectorAll('.producto-row');
+
+        if (rows.length <= 1) {
+        // Limpiar la última fila
+        const row = btn.closest('tr');
+        const select = row.querySelector('.lote-select');
+        if (select) select.value = '';
+
+        const inputs = row.querySelectorAll('input');
+        inputs.forEach(input => {
+        if (input.classList.contains('cantidad')) {
+        input.value = 1;
+        } else if (input.classList.contains('precio-unitario')) {
+        input.value = '';
+        }
+        });
+
+        const subtotalSpan = row.querySelector('.subtotal');
+        if (subtotalSpan) subtotalSpan.textContent = 'Bs. 0.00';
+        } else {
+        btn.closest('tr').remove();
+        }
+
+        calcularTotal();
+        // Actualizar todas las listas después de eliminar
+        updateAllLoteLists();
+        }
+
+        // Función para calcular totales
+        function calcularTotal() {
+        let totalGeneral = 0;
+        const rows = document.querySelectorAll('#productosBody .producto-row');
+
+        rows.forEach(row => {
+        const cantidadInput = row.querySelector('.cantidad');
+        const precioInput = row.querySelector('.precio-unitario');
+
+        let cantidad = parseFloat(cantidadInput?.value) || 0;
+        const precio = parseFloat(precioInput?.value) || 0;
+
+        // Respetar el máximo de stock
+        const max = cantidadInput?.getAttribute('max');
+        if (max && cantidad > parseInt(max)) {
+        cantidadInput.value = parseInt(max);
+        cantidad = parseInt(max);
+        }
+
+        const subtotal = cantidad * precio;
+        const subtotalSpan = row.querySelector('.subtotal');
+        if (subtotalSpan) subtotalSpan.textContent = `Bs. ${subtotal.toFixed(2)}`;
+
+        totalGeneral += subtotal;
+        });
+
+        document.getElementById('subtotalGeneral').textContent = `Bs. ${totalGeneral.toFixed(2)}`;
+        document.getElementById('totalGeneral').textContent = `Bs. ${totalGeneral.toFixed(2)}`;
+        }
+
+        // Verificar validez del formulario antes de enviar
+        function validateFormBeforeSubmit() {
+        const rows = document.querySelectorAll('#productosBody .producto-row');
+        let hasValidItems = false;
+
+        for (const row of rows) {
+        const select = row.querySelector('.lote-select');
+        const cantidad = row.querySelector('.cantidad');
+
+        if (select && select.value && cantidad && parseInt(cantidad.value) > 0) {
+        hasValidItems = true;
+        break;
+        }
+        }
+
+        if (!hasValidItems) {
+        alert('⚠️ Debe agregar al menos un producto válido para registrar la venta.');
+        return false;
+        }
+
+        return true;
+        }
+
+        // Inicialización al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM cargado - Inicializando...');
+
+        // Interceptar el envío del formulario para validar
+        const form = document.querySelector('form');
+        if (form) {
+        form.addEventListener('submit', function(e) {
+        if (!validateFormBeforeSubmit()) {
+        e.preventDefault();
+        }
+        });
+        }
+
+        // Inicializar todas las filas existentes
+        const rows = document.querySelectorAll('#productosBody .producto-row');
+
+        rows.forEach(row => {
+        const select = row.querySelector('.lote-select');
+        if (select) {
+        // Reemplazar el onchange existente
+        select.removeAttribute('onchange');
+        select.addEventListener('change', function() {
+        handleLoteChange(this);
+        });
+
+        // Si ya tiene un valor seleccionado
+        if (select.value) {
+        const option = select.querySelector(`option[value="${select.value}"]`);
+        if (option) {
+        const precioInput = row.querySelector('.precio-unitario');
+        const precioBase = option.getAttribute('data-precio');
+        if (precioInput && (!precioInput.value || parseFloat(precioInput.value) === 0)) {
+        precioInput.value = precioBase;
+        }
+        }
+        }
+        }
+
+        // Configurar eventos para inputs de cantidad y precio
+        const cantidadInput = row.querySelector('.cantidad');
+        const precioInput = row.querySelector('.precio-unitario');
+
+        if (cantidadInput) {
+        cantidadInput.addEventListener('input', calcularTotal);
+        }
+        if (precioInput) {
+        precioInput.addEventListener('input', calcularTotal);
+        }
+        });
+
+        // Actualizar todas las listas para excluir los lotes ya seleccionados
+        updateAllLoteLists();
+
+        // Calcular total inicial
+        calcularTotal();
+
+        console.log('Inicialización completada');
+        });
+
+        // Función para fecha
+        function actualizarFechaCompleta() {
+        const fecha = document.getElementById('fechaDate').value;
+        const hora = document.getElementById('fechaTime').value;
+        if (fecha && hora) {
+        const fechaCompleta = `${fecha}T${hora}:00`;
+        document.getElementById('fechaCompleta').value = fechaCompleta;
+        }
+        }
+
+        const fechaDate = document.getElementById('fechaDate');
+        const fechaTime = document.getElementById('fechaTime');
+        if (fechaDate && fechaTime) {
+        fechaDate.addEventListener('change', actualizarFechaCompleta);
+        fechaTime.addEventListener('change', actualizarFechaCompleta);
+        actualizarFechaCompleta();
+        }
+    </script>
+}

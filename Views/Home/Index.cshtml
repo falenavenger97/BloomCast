@@ -1,0 +1,272 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var hoy = DateTime.UtcNow;
+    var cultura = new System.Globalization.CultureInfo("es-ES");
+}
+<style>
+  :root {
+    --sage:#7a9b76; --sage-l:#a8c4a4; --cream:#f5f0e8;
+    --bark:#3d2b1f; --bark-l:#6b4c38; --gold:#c9a85c;
+    --rose:#c97d6e; --white:#fdfaf5;
+    --shadow:0 4px 28px rgba(61,43,31,.10);
+  }
+
+  /* ── Header ── */
+  .dash-header { margin-bottom: 1.8rem; }
+  .dash-header h1 {
+    font-family:'Cormorant Garamond',serif;
+    font-size:2.1rem; font-weight:300; color:var(--bark);
+  }
+  .dash-header h1 em { color:var(--sage); font-style:italic; }
+  .dash-header p { color:var(--bark-l); margin-top:.2rem; font-size:.88rem; }
+
+  /* ── Stats row ── */
+  .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:1.1rem; margin-bottom:1.8rem; }
+  .stat-card {
+    background:var(--white); border-radius:14px; padding:1.2rem 1.4rem;
+    box-shadow:var(--shadow); display:flex; align-items:center; gap:1rem;
+  }
+  .stat-icon { font-size:2rem; flex-shrink:0; }
+  .stat-label { font-size:.72rem; color:var(--bark-l); text-transform:uppercase; letter-spacing:.05em; }
+  .stat-val   { font-family:'Cormorant Garamond',serif; font-size:1.8rem; font-weight:600; color:var(--bark); line-height:1; }
+  .stat-card.alert .stat-val { color:var(--rose); }
+
+  /* ── Main grid ── */
+  .dash-grid {
+    display:grid;
+    grid-template-columns: 1fr 370px;
+    gap: 1.6rem;
+    align-items: start;
+  }
+
+  /* ── Card base ── */
+  .card {
+    background:var(--white); border-radius:14px;
+    padding:1.6rem; box-shadow:var(--shadow);
+  }
+  .card-title {
+    font-family:'Cormorant Garamond',serif;
+    font-size:1.25rem; font-weight:400; color:var(--bark);
+    display:flex; align-items:center; gap:.45rem;
+    margin-bottom:1.1rem;
+    padding-bottom:.7rem;
+    border-bottom:1px solid #ece5da;
+  }
+  .card-sub { font-size:.75rem; color:var(--bark-l); font-family:'DM Sans',sans-serif; margin-left:auto; font-weight:400; }
+
+  /* ── Chart ── */
+  .chart-wrap { position:relative; height:300px; }
+
+  /* ── Lote cards ── */
+  .lote-list { display:flex; flex-direction:column; gap:.75rem; max-height:420px; overflow-y:auto; padding-right:2px; }
+  .lote-list::-webkit-scrollbar { width:4px; }
+  .lote-list::-webkit-scrollbar-track { background:transparent; }
+  .lote-list::-webkit-scrollbar-thumb { background:#d0c8b8; border-radius:4px; }
+
+  .lote-item {
+    background:var(--cream);
+    border-radius:10px; padding:.9rem 1rem;
+    border-left:4px solid var(--sage);
+    display:flex; justify-content:space-between; align-items:center;
+    transition:transform .15s, box-shadow .15s;
+  }
+  .lote-item:hover { transform:translateX(3px); box-shadow:0 2px 12px rgba(61,43,31,.08); }
+  .lote-item.expirado { border-left-color:var(--black); }
+  .lote-item.critico { border-left-color:var(--rose); background:#fff5f3; }
+  .lote-item.aviso   { border-left-color:var(--gold); background:#fff4d9; }
+  .lote-item.ok   { background:#f2fbf1; }
+
+  .lote-main {}
+  .lote-codigo   { font-weight:600; color:var(--bark); font-size:.88rem; }
+  .lote-variedad { color:var(--bark-l); font-size:.77rem; margin-top:.1rem; }
+  .lote-tipo     { color:#9a8070; font-size:.72rem; font-style:italic; }
+
+  .lote-right { text-align:right; flex-shrink:0; margin-left:.75rem; }
+  .lote-cant  { font-weight:600; color:var(--bark); font-size:.95rem; }
+  .lote-cant span { font-size:.7rem; font-weight:400; color:var(--bark-l); }
+
+  .dias-badge {
+    display:inline-block; margin-top:.25rem;
+    padding:.12rem .5rem; border-radius:20px;
+    font-size:.7rem; font-weight:700; letter-spacing:.02em;
+  }
+  .dias-badge.expirado { background:rgba(255,255,255.12); color:black; }
+  .dias-badge.critico { background:rgba(201,125,110,.18); color:#a03020; }
+  .dias-badge.aviso   { background:rgba(201,168,92,.20);  color:#8a6820; }
+  .dias-badge.ok      { background:rgba(122,155,118,.18); color:#3a6030; }
+
+  /* ── Empty state ── */
+  .empty { text-align:center; padding:2.5rem 1rem; color:var(--bark-l); }
+  .empty .e-icon { font-size:2.8rem; margin-bottom:.5rem; }
+  .empty p { font-size:.88rem; }
+
+  @@media(max-width:960px){
+    .dash-grid { grid-template-columns:1fr; }
+    .stats-row { grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+
+<!-- Header -->
+<div class="dash-header">
+  <h1>Hola, <em>@Model.NombreUsuario</em></h1>
+  <p>@DateTime.Now.ToString("dddd, d 'de' MMMM yyyy", cultura) &nbsp;·&nbsp; @Model.RolNombre</p>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon">🌺</div>
+    <div>
+      <div class="stat-label">Variedades</div>
+      <div class="stat-val">@Model.TotalOrquideas</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📦</div>
+    <div>
+      <div class="stat-label">Lotes activos</div>
+      <div class="stat-val">@Model.TotalLotes</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">💰</div>
+    <div>
+      <div class="stat-label">Ventas hoy</div>
+      <div class="stat-val">Bs @Model.VentasHoy.ToString("N0")</div>
+    </div>
+  </div>
+  <div class="stat-card @(Model.LotesCriticos > 0 ? "alert" : "")">
+    <div class="stat-icon">⚠️</div>
+    <div>
+      <div class="stat-label">Críticos &lt;7d</div>
+      <div class="stat-val">@Model.LotesCriticos</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main grid -->
+<div class="dash-grid">
+
+  <!-- Demand chart -->
+  <div class="card">
+    <div class="card-title">
+      📈 Predicciones de Demanda
+      <span class="card-sub">Agrupado por mes</span>
+    </div>
+    @if (!Model.Predicciones.Any())
+    {
+      <div class="empty">
+        <div class="e-icon">📭</div>
+        <p>No hay predicciones de demanda registradas.</p>
+      </div>
+    }
+    else
+    {
+      <div class="chart-wrap">
+        <canvas id="demandChart"></canvas>
+      </div>
+    }
+  </div>
+
+  <!-- Expiry lots -->
+  <div class="card">
+    <div class="card-title">
+      🕐 Lotes Próximos a Caducar
+      <span class="card-sub">≤ 30 días</span>
+    </div>
+    @if (!Model.LotesPorCaducar.Any())
+    {
+      <div class="empty">
+        <div class="e-icon">✅</div>
+        <p>Sin lotes próximos a caducar.</p>
+      </div>
+    }
+    else
+    {
+      <div class="lote-list">
+        @foreach (var lote in Model.LotesPorCaducar)
+        {
+          var dias = (lote.FechaCaducidad!.Value - hoy).TotalDays;
+          var css  = dias < 0 ? "expirado" : dias <= 7 ? "critico" : dias <= 15 ? "aviso" : "ok";
+          var txt  = dias < 0 ? "Caducado" : dias < 1  ? "¡Hoy caduca!" : dias < 2 ? "1 día" : $"{(int)dias} días";
+
+          <div class="lote-item @css">
+            <div class="lote-main">
+              <div class="lote-codigo">@lote.CodigoLote</div>
+              <div class="lote-variedad">@(lote.Orquidea?.Variedad ?? "—")</div>
+              <div class="lote-tipo">@(lote.Orquidea?.Tipo ?? "")</div>
+            </div>
+            <div class="lote-right">
+              <div class="lote-cant">@lote.CantidadActual <span>uds.</span></div>
+              <span class="dias-badge @css">@txt</span>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+</div>
+
+@section Scripts {
+<script>
+(function(){
+  const raw = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+    Model.Predicciones.Select(p => new {
+      mes      = p.FechaObjetivo.ToString("yyyy-MM"),
+      variedad = p.Orquidea != null ? p.Orquidea.Variedad : "Sin variedad",
+      cantidad = p.CantidadEstimada
+    })
+  ));
+
+  if(!raw.length) return;
+
+  const variedades = [...new Set(raw.map(r => r.variedad))];
+  const meses      = [...new Set(raw.map(r => r.mes))].sort();
+
+  const palette = [
+    '#7a9b76','#c9a85c','#c97d6e','#6b9bb8','#a37cb5',
+    '#5b8a8b','#d4956a','#8b7b9e','#7b9e87','#b8956a'
+  ];
+
+  const datasets = variedades.map((v, i) => ({
+    label: v,
+    data: meses.map(m => raw.filter(r => r.variedad===v && r.mes===m).reduce((s,r)=>s+r.cantidad,0)),
+    borderColor: palette[i % palette.length],
+    backgroundColor: palette[i % palette.length] + '20',
+    borderWidth: 2.5,
+    tension: 0.4,
+    pointRadius: 4,
+    pointHoverRadius: 7,
+    fill: false
+  }));
+
+  new Chart(document.getElementById('demandChart'), {
+    type: 'line',
+    data: { labels: meses, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: {
+          position:'bottom',
+          labels:{ color:'#6b4c38', font:{ family:"'DM Sans'", size:11 }, boxWidth:12, padding:12 }
+        },
+        tooltip: {
+          backgroundColor:'#3d2b1f', titleColor:'#c9a85c',
+          bodyColor:'#f5f0e8', borderColor:'#7a9b76',
+          borderWidth:1, cornerRadius:8, padding:11
+        }
+      },
+      scales: {
+        x: { grid:{ color:'rgba(61,43,31,.06)' }, ticks:{ color:'#6b4c38', font:{size:11} } },
+        y: { grid:{ color:'rgba(61,43,31,.06)' }, ticks:{ color:'#6b4c38', font:{size:11} }, beginAtZero:true,
+             title:{ display:true, text:'Cantidad estimada', color:'#9a8070', font:{size:11} } }
+      }
+    }
+  });
+})();
+</script>
+}

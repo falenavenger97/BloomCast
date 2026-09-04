@@ -1,0 +1,825 @@
+@model IEnumerable<BloomCast.Models.Venta>
+
+@{
+    ViewData["Title"] = "Ventas";
+}
+
+<style>
+    :root {
+        --sage: #7a9b76;
+        --sage-l: #a8c4a4;
+        --cream: #f5f0e8;
+        --bark: #3d2b1f;
+        --bark-l: #6b4c38;
+        --gold: #c9a85c;
+        --rose: #c97d6e;
+        --white: #fdfaf5;
+        --shadow: 0 4px 28px rgba(61,43,31,.10);
+    }
+
+    .page-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 1.8rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+        .page-header h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 2.1rem;
+            font-weight: 300;
+            color: var(--bark);
+            line-height: 1;
+        }
+
+            .page-header h1 em {
+                color: var(--sage);
+                font-style: italic;
+            }
+
+        .page-header p {
+            color: var(--bark-l);
+            font-size: .85rem;
+            margin-top: .3rem;
+        }
+
+    .btn-primary {
+        background: var(--sage);
+        color: var(--white);
+        border: none;
+        padding: .55rem 1.2rem;
+        border-radius: 8px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .88rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        transition: background .2s, transform .15s;
+    }
+
+        .btn-primary:hover {
+            background: #698f65;
+            transform: translateY(-1px);
+            color: var(--white);
+            text-decoration: none;
+        }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--bark-l);
+        border: 1px solid #d4c9b8;
+        padding: .45rem .9rem;
+        border-radius: 6px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .8rem;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        transition: all .2s;
+    }
+
+        .btn-ghost:hover {
+            border-color: var(--sage);
+            color: var(--sage);
+            text-decoration: none;
+        }
+
+    .btn-icon {
+        background: transparent;
+        border: none;
+        padding: .35rem .55rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: .95rem;
+        transition: background .15s, transform .15s;
+        line-height: 1;
+    }
+
+        .btn-icon:hover {
+            background: rgba(61,43,31,.07);
+            transform: scale(1.12);
+        }
+
+        .btn-icon.danger:hover {
+            background: rgba(201,125,110,.15);
+        }
+
+    .alert {
+        padding: .75rem 1.1rem;
+        border-radius: 10px;
+        font-size: .87rem;
+        margin-bottom: 1.4rem;
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+    }
+
+    .alert-success {
+        background: #eef7ed;
+        color: #2e6b2a;
+        border-left: 4px solid var(--sage);
+    }
+
+    .alert-error {
+        background: #fdf0ee;
+        color: #8a2e22;
+        border-left: 4px solid var(--rose);
+    }
+
+    .filters-card {
+        background: var(--white);
+        border-radius: 14px;
+        padding: 1.2rem 1.4rem;
+        box-shadow: var(--shadow);
+        margin-bottom: 1.4rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: .3rem;
+    }
+
+        .filter-group label {
+            font-size: .73rem;
+            color: var(--bark-l);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            font-weight: 500;
+        }
+
+    .f-input {
+        background: var(--cream);
+        border: 1px solid #ddd4c4;
+        border-radius: 7px;
+        padding: .45rem .75rem;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .87rem;
+        color: var(--bark);
+        outline: none;
+        transition: border-color .2s;
+        min-width: 180px;
+    }
+
+        .f-input:focus {
+            border-color: var(--sage);
+        }
+
+    .filter-actions {
+        display: flex;
+        gap: .6rem;
+        align-items: flex-end;
+        margin-left: auto;
+    }
+
+    .table-card {
+        background: var(--white);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .table-scroll-wrapper{
+        overflow-y: auto;
+        max-height: 420px;
+    }
+
+        .table-card table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table-card thead tr {
+            background: var(--cream);
+            border-bottom: 2px solid #ece5da;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .table-card th {
+            padding: .85rem 1.2rem;
+            text-align: left;
+            font-size: .72rem;
+            font-weight: 600;
+            color: var(--bark-l);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            white-space: nowrap;
+        }
+
+        .table-card td {
+            padding: .9rem 1.2rem;
+            font-size: .87rem;
+            color: var(--bark);
+            vertical-align: middle;
+            border-bottom: 1px solid #f0e9df;
+        }
+
+        .table-card tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-card tbody tr {
+            transition: background .12s;
+        }
+
+            .table-card tbody tr:hover {
+                background: #faf6ef;
+            }
+
+    .user-cell {
+        display: flex;
+        align-items: center;
+        gap: .8rem;
+    }
+
+    .avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: var(--sage);
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1rem;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .user-name {
+        font-weight: 500;
+        color: var(--bark);
+        font-size: .9rem;
+    }
+
+    .user-sub {
+        font-size: .76rem;
+        color: var(--bark-l);
+    }
+
+    .sale-total {
+        font-weight: 700;
+        color: var(--bark);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3.5rem 1rem;
+        color: var(--bark-l);
+    }
+
+        .empty-state .e-icon {
+            font-size: 3rem;
+            margin-bottom: .6rem;
+        }
+
+        .empty-state p {
+            font-size: .9rem;
+        }
+
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(61,43,31,.45);
+        backdrop-filter: blur(3px);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+    .modal-box {
+        background: var(--white);
+        border-radius: 16px;
+        padding: 2rem;
+        max-width: 420px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(61,43,31,.25);
+        text-align: center;
+    }
+
+    .modal-icon {
+        font-size: 2.8rem;
+        margin-bottom: .8rem;
+    }
+
+    .modal-box h3 {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1.4rem;
+        font-weight: 400;
+        color: var(--bark);
+        margin-bottom: .5rem;
+    }
+
+    .modal-box p {
+        color: var(--bark-l);
+        font-size: .88rem;
+        margin-bottom: 1rem;
+    }
+
+    .modal-btns {
+        display: flex;
+        gap: .8rem;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+
+    .btn-danger {
+        background: var(--rose);
+        color: white;
+        border: none;
+        padding: .55rem 1.3rem;
+        border-radius: 8px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: .88rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+        .btn-danger:hover {
+            background: #b56657;
+        }
+
+    .table-footer {
+        padding: .8rem 1.2rem;
+        border-top: 1px solid #f0e9df;
+        font-size: .78rem;
+        color: var(--bark-l);
+        background: var(--cream);
+    }
+
+    @@media(max-width:768px) {
+        .filters-card {
+            flex-direction: column;
+        }
+
+        .filter-actions {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .table-card {
+            overflow-x: auto;
+        }
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .text-left {
+        text-align: left;
+    }
+
+    .mb-2 {
+        margin-bottom: 0.5rem;
+    }
+
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+</style>
+
+<!-- Header -->
+<div class="page-header">
+    <div>
+        <h1>Gestión de <em>Ventas</em></h1>
+        <p>Administra y consulta las ventas registradas en BloomCast</p>
+    </div>
+    <a href="/Sales/Create" class="btn-primary">＋ Nueva venta</a>
+</div>
+
+<!-- Alerts -->
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">✅ @Html.Raw(TempData["Success"])</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-error">⚠️ @Html.Raw(TempData["Error"])</div>
+}
+
+<!-- Filters -->
+<form method="get" asp-action="Index">
+    <div class="filters-card">
+        <div class="filter-group">
+            <label>Buscar usuario</label>
+            <input type="text"
+                   name="search"
+                   class="f-input"
+                   placeholder="Nombre o ID usuario..."
+                   value="@ViewBag.Search" />
+        </div>
+
+        <div class="filter-group">
+            <label>Fecha</label>
+            <input type="date"
+                   name="fecha"
+                   class="f-input"
+                   value="@ViewBag.Fecha" />
+        </div>
+
+        <div class="filter-actions">
+            <button type="submit" class="btn-primary">🔍 Filtrar</button>
+            <a href="/Sales" class="btn-ghost">✕ Limpiar</a>
+        </div>
+    </div>
+</form>
+
+<!-- Table -->
+<div class="table-card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="e-icon">🧾</div>
+            <p>No se encontraron ventas con los filtros aplicados.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vendedor</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th style="text-align:right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model)
+                    {
+                        var userName = s.Usuario?.NombreCompleto ?? "Usuario #" + s.UsuarioId;
+                        var initials = string.Join("",
+                            userName.Split(' ')
+                                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                                    .Take(2)
+                                    .Select(x => x[0].ToString().ToUpper()));
+
+                        <tr>
+                            <td>
+                                <div class="user-cell">
+                                    <div class="avatar">@initials</div>
+                                    <div>
+                                        <div class="user-name">@userName</div>
+                                        <div class="user-sub">Venta #@s.Id</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>@s.FechaVenta.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                <span class="sale-total">Bs. @s.Total.ToString("N2")</span>
+                            </td>
+                            <td>
+                                <div style="display:flex;justify-content:flex-end;gap:.3rem">
+                                    <button type="button"
+                                            class="btn-icon"
+                                            onclick="verDetalles(@s.Id)"
+                                            title="Ver detalle">
+                                        👁️
+                                    </button>                                <button type="button"
+                                            class="btn-icon danger"
+                                            onclick="confirmarEliminar(@s.Id, 'Venta #@s.Id - @userName')"
+                                            title="Eliminar">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="table-footer">
+            @Model.Count() venta(s) encontrada(s)
+        </div>
+    }
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-box">
+        <div class="modal-icon">🔐</div>
+        <h3>Verificación de Administrador</h3>
+        <p>Estás eliminando: <strong id="modalNombre"></strong></p>
+        <p style="font-size: 0.85rem; color: var(--rose);">⚠️ Esta acción restaurará el stock y no se puede deshacer.</p>
+
+        <form id="deleteForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" id="ventaIdInput" />
+
+            <div class="text-left mb-3">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 0.5rem; color: var(--bark-l);">
+                    Contraseña de Administrador:
+                </label>
+                <input type="password"
+                       name="password"
+                       id="adminPassword"
+                       class="f-input"
+                       style="width: 100%;"
+                       placeholder="Ingrese su contraseña"
+                       autocomplete="off" />
+            </div>
+
+            <div id="passwordError" class="alert alert-error" style="display: none; margin-bottom: 1rem; font-size: 0.8rem; padding: 0.5rem;">
+                ⚠️ <span id="errorMessage"></span>
+            </div>
+
+            <div id="loadingSpinner" style="display: none; text-align: center; margin-bottom: 1rem;">
+                <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid var(--sage); border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
+                <span style="margin-left: 0.5rem; font-size: 0.85rem;">Verificando contraseña...</span>
+            </div>
+
+            <div class="modal-btns">
+                <button type="button" class="btn-ghost" id="cancelarBtn">Cancelar</button>
+                <button type="submit" class="btn-danger" id="submitDeleteBtn">🗑️ Confirmar Eliminación</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal de Detalles de Venta -->
+<div class="modal-overlay" id="detailsModal">
+    <div class="modal-box" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+        <div class="modal-icon">📋</div>
+        <h3>Detalles de la Venta</h3>
+
+        <div id="detallesContent">
+            <div style="text-align: center; padding: 2rem;">
+                <div style="display: inline-block; width: 30px; height: 30px; border: 2px solid var(--sage); border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
+                <p style="margin-top: 1rem;">Cargando detalles...</p>
+            </div>
+        </div>
+
+        <div class="modal-btns">
+            <button type="button" class="btn-ghost" id="cerrarDetallesBtn">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let ventaIdActual = null;
+
+    function confirmarEliminar(id, nombre) {
+        ventaIdActual = id;
+        document.getElementById('modalNombre').textContent = nombre;
+        document.getElementById('ventaIdInput').value = id;
+        document.getElementById('adminPassword').value = '';
+        document.getElementById('passwordError').style.display = 'none';
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('submitDeleteBtn').disabled = false;
+        document.getElementById('submitDeleteBtn').textContent = '🗑️ Confirmar Eliminación';
+        document.getElementById('deleteModal').classList.add('active');
+    }
+
+    function cerrarModal() {
+        document.getElementById('deleteModal').classList.remove('active');
+        ventaIdActual = null;
+        // Limpiar el formulario
+        document.getElementById('adminPassword').value = '';
+        document.getElementById('passwordError').style.display = 'none';
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
+
+    // Cerrar modal al hacer clic en Cancelar
+    document.getElementById('cancelarBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        cerrarModal();
+    });
+
+    // Cerrar modal al hacer clic fuera del contenido
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            cerrarModal();
+        }
+    });
+
+    // Manejar el envío del formulario
+    document.getElementById('deleteForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const password = document.getElementById('adminPassword').value;
+        const ventaId = document.getElementById('ventaIdInput').value;
+        const submitBtn = document.getElementById('submitDeleteBtn');
+        const errorDiv = document.getElementById('passwordError');
+        const errorMsg = document.getElementById('errorMessage');
+        const spinner = document.getElementById('loadingSpinner');
+
+        if (!password) {
+            errorMsg.textContent = 'Por favor ingrese la contraseña de administrador';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        // Deshabilitar botón y mostrar loading
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Verificando...';
+        errorDiv.style.display = 'none';
+        spinner.style.display = 'block';
+
+        const formData = new FormData(this);
+
+        try {
+            const response = await fetch('/Sales/DeleteWithPassword', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                spinner.style.display = 'none';
+                cerrarModal();
+                mostrarMensajeExito(result.message);
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                spinner.style.display = 'none';
+                errorMsg.textContent = result.message;
+                errorDiv.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🗑️ Confirmar Eliminación';
+                // Enfocar el campo de contraseña
+                document.getElementById('adminPassword').focus();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            spinner.style.display = 'none';
+            errorMsg.textContent = 'Error al conectar con el servidor. Intente nuevamente.';
+            errorDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = '🗑️ Confirmar Eliminación';
+        }
+    });
+
+    function mostrarMensajeExito(mensaje) {
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success';
+        alert.style.position = 'fixed';
+        alert.style.top = '20px';
+        alert.style.right = '20px';
+        alert.style.zIndex = '9999';
+        alert.style.maxWidth = '350px';
+        alert.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        alert.innerHTML = '✅ ' + mensaje;
+        document.body.appendChild(alert);
+        setTimeout(() => alert.remove(), 2000);
+    }
+
+    // Permitir Enter en el campo de contraseña
+    document.getElementById('adminPassword').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('deleteForm').dispatchEvent(new Event('submit'));
+        }
+    });
+
+    // Prevenir que el Enter dentro del modal cierre accidentalmente
+    document.getElementById('deleteModal').addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            cerrarModal();
+        }
+    });
+        // Función para ver detalles de la venta
+    async function verDetalles(id) {
+        const modal = document.getElementById('detailsModal');
+        const content = document.getElementById('detallesContent');
+
+        // Mostrar modal con loading
+        modal.classList.add('active');
+        content.innerHTML = `
+            <div style="text-align: center; padding: 2rem;">
+                <div style="display: inline-block; width: 30px; height: 30px; border: 2px solid var(--sage); border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
+                <p style="margin-top: 1rem;">Cargando detalles de la venta #${id}...</p>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`/Sales/GetVentaDetails/${id}`);
+            const result = await response.json();
+
+            if (result.success) {
+                content.innerHTML = `
+                    <div style="text-align: left;">
+                        <!-- Información de la venta -->
+                        <div style="background: var(--cream); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+                            <h4 style="color: var(--bark); margin-bottom: 0.5rem;">📄 Información General</h4>
+                            <p style="margin: 0.3rem 0;"><strong>Venta #:</strong> ${result.venta.id}</p>
+                            <p style="margin: 0.3rem 0;"><strong>Fecha:</strong> ${new Date(result.venta.fechaVenta).toLocaleString()}</p>
+                            <p style="margin: 0.3rem 0;"><strong>Vendedor:</strong> ${result.venta.usuario}</p>
+                            <p style="margin: 0.3rem 0;"><strong>Total:</strong> <span style="color: var(--sage); font-weight: bold;">Bs. ${parseFloat(result.venta.total).toFixed(2)}</span></p>
+                        </div>
+
+                        <!-- Detalle de productos -->
+                        <h4 style="color: var(--bark); margin-bottom: 0.8rem;">🌿 Productos Vendidos</h4>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: var(--cream); border-bottom: 2px solid var(--sage-l);">
+                                        <th style="padding: 0.5rem; text-align: left;">Producto</th>
+                                        <th style="padding: 0.5rem; text-align: center;">Cantidad</th>
+                                        <th style="padding: 0.5rem; text-align: right;">Precio Unit.</th>
+                                        <th style="padding: 0.5rem; text-align: right;">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${result.detalles.map(detalle => `
+                                        <tr style="border-bottom: 1px solid var(--cream);">
+                                            <td style="padding: 0.5rem;">
+                                                <strong>${detalle.producto}</strong><br/>
+                                                <small style="color: var(--bark-l);">Lote: ${detalle.codigoLote}</small>
+                                            </td>
+                                            <td style="padding: 0.5rem; text-align: center;">${detalle.cantidad}</td>
+                                            <td style="padding: 0.5rem; text-align: right;">Bs. ${parseFloat(detalle.precioUnitario).toFixed(2)}</td>
+                                            <td style="padding: 0.5rem; text-align: right; font-weight: 500;">Bs. ${parseFloat(detalle.subtotal).toFixed(2)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                                <tfoot>
+                                    <tr style="background: var(--cream); border-top: 2px solid var(--sage-l);">
+                                        <td colspan="3" style="padding: 0.8rem 0.5rem; text-align: right; font-weight: bold;">TOTAL:</td>
+                                        <td style="padding: 0.8rem 0.5rem; text-align: right; font-weight: bold; color: var(--sage);">
+                                            Bs. ${parseFloat(result.venta.total).toFixed(2)}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">😞</div>
+                        <p style="color: var(--rose);">Error al cargar los detalles</p>
+                        <p style="font-size: 0.85rem;">${result.message}</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            content.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                    <p style="color: var(--rose);">Error de conexión</p>
+                    <p style="font-size: 0.85rem;">No se pudieron cargar los detalles de la venta.</p>
+                </div>
+            `;
+        }
+    }
+
+    // Función para cerrar el modal de detalles
+    function cerrarModalDetalles() {
+        document.getElementById('detailsModal').classList.remove('active');
+    }
+
+    // Event listener para cerrar modal de detalles
+    document.getElementById('cerrarDetallesBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        cerrarModalDetalles();
+    });
+
+    // Cerrar modal de detalles al hacer clic fuera
+    document.getElementById('detailsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            cerrarModalDetalles();
+        }
+    });
+
+    // Cerrar con tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (document.getElementById('detailsModal').classList.contains('active')) {
+                cerrarModalDetalles();
+            }
+        }
+    });
+</script>

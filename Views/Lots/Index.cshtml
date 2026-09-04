@@ -1,0 +1,365 @@
+@model IEnumerable<BloomCast.Models.Lote>
+
+@{
+    ViewData["Title"] = "Gestión de lotes";
+
+    var hoy = DateTime.UtcNow.Date;
+}
+
+<div class="container py-4">
+
+    <!-- Encabezado -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+
+        <div>
+            <h2 class="mb-1">Gestión de lotes</h2>
+            <p class="text-muted mb-0">
+                Control de inventario y prioridad de salida FEFO.
+            </p>
+        </div>
+
+        <a asp-controller="Lots"
+           asp-action="Create"
+           class="btn btn-primary">
+
+            Registrar nuevo lote
+
+        </a>
+
+    </div>
+
+
+    <!-- Mensaje de éxito -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show"
+             role="alert">
+
+            @TempData["Success"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Cerrar">
+            </button>
+
+        </div>
+    }
+
+
+    <!-- Buscador -->
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <form asp-controller="Lots"
+                  asp-action="Index"
+                  method="get">
+
+                <div class="row g-2 align-items-end">
+
+                    <div class="col-md-8">
+
+                        <label class="form-label fw-semibold">
+                            Buscar lote
+                        </label>
+
+                        <input type="text"
+                               name="search"
+                               value="@ViewBag.Search"
+                               class="form-control"
+                               placeholder="Código, variedad o tipo de orquídea..." />
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <div class="d-flex gap-2">
+
+                            <button type="submit"
+                                    class="btn btn-primary flex-grow-1">
+                                Buscar
+                            </button>
+
+                            <a asp-controller="Lots"
+                               asp-action="Index"
+                               class="btn btn-outline-secondary">
+                                Limpiar
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- Leyenda FEFO -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+
+        <span class="badge bg-success">
+            Estable
+        </span>
+
+        <span class="badge bg-warning text-dark">
+            Próximo ≤ 30 días
+        </span>
+
+        <span class="badge bg-danger">
+            Crítico ≤ 7 días
+        </span>
+
+        <span class="badge bg-dark">
+            Vencido
+        </span>
+
+        <span class="badge bg-secondary">
+            Agotado
+        </span>
+
+    </div>
+
+
+    <!-- Tabla -->
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+                            <th class="ps-4">
+                                Código
+                            </th>
+
+                            <th>
+                                Orquídea
+                            </th>
+
+                            <th>
+                                Tipo
+                            </th>
+
+                            <th class="text-center">
+                                Inicial
+                            </th>
+
+                            <th class="text-center">
+                                Actual
+                            </th>
+
+                            <th>
+                                Ingreso
+                            </th>
+
+                            <th>
+                                Caducidad
+                            </th>
+
+                            <th class="text-center">
+                                Días restantes
+                            </th>
+
+                            <th class="text-center pe-4">
+                                Estado
+                            </th>
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var lote in Model)
+                            {
+                                string estado;
+                                string badgeClass;
+                                string rowClass = "";
+                                string diasTexto = "-";
+
+                                int? diasRestantes = null;
+
+                                if (lote.CantidadActual <= 0)
+                                {
+                                    estado = "Agotado";
+                                    badgeClass = "bg-secondary";
+                                }
+                                else if (!lote.FechaCaducidad.HasValue)
+                                {
+                                    estado = "Sin fecha";
+                                    badgeClass = "bg-secondary";
+                                }
+                                else
+                                {
+                                    diasRestantes =
+                                        (lote.FechaCaducidad.Value.Date - hoy).Days;
+
+                                    diasTexto = diasRestantes.Value.ToString();
+
+                                    if (diasRestantes < 0)
+                                    {
+                                        estado = "Vencido";
+                                        badgeClass = "bg-dark";
+                                        rowClass = "table-secondary";
+                                    }
+                                    else if (diasRestantes <= 7)
+                                    {
+                                        estado = "Crítico";
+                                        badgeClass = "bg-danger";
+                                        rowClass = "table-danger";
+                                    }
+                                    else if (diasRestantes <= 30)
+                                    {
+                                        estado = "Próximo";
+                                        badgeClass = "bg-warning text-dark";
+                                        rowClass = "table-warning";
+                                    }
+                                    else
+                                    {
+                                        estado = "Estable";
+                                        badgeClass = "bg-success";
+                                    }
+                                }
+
+                                <tr class="@rowClass">
+
+                                    <!-- Código -->
+                                    <td class="ps-4 fw-semibold">
+                                        @lote.CodigoLote
+                                    </td>
+
+
+                                    <!-- Variedad -->
+                                    <td>
+                                        @(lote.Orquidea?.Variedad ?? "N/A")
+                                    </td>
+
+
+                                    <!-- Tipo -->
+                                    <td>
+                                        @(lote.Orquidea?.Tipo ?? "N/A")
+                                    </td>
+
+
+                                    <!-- Cantidad inicial -->
+                                    <td class="text-center">
+                                        @lote.CantidadInicial
+                                    </td>
+
+
+                                    <!-- Cantidad actual -->
+                                    <td class="text-center">
+
+                                        <span class="fw-semibold">
+                                            @lote.CantidadActual
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- Fecha ingreso -->
+                                    <td>
+                                        @lote.FechaIngreso.ToString("dd/MM/yyyy")
+                                    </td>
+
+
+                                    <!-- Fecha caducidad -->
+                                    <td>
+
+                                        @if (lote.FechaCaducidad.HasValue)
+                                        {
+                                            @lote.FechaCaducidad.Value.ToString("dd/MM/yyyy")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                No definida
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Días restantes -->
+                                    <td class="text-center">
+
+                                        @if (diasRestantes.HasValue)
+                                        {
+                                            if (diasRestantes < 0)
+                                            {
+                                                <span>
+                                                    @Math.Abs(diasRestantes.Value) días vencido
+                                                </span>
+                                            }
+                                            else if (diasRestantes == 0)
+                                            {
+                                                <strong>
+                                                    Hoy
+                                                </strong>
+                                            }
+                                            else
+                                            {
+                                                <span>
+                                                    @diasRestantes días
+                                                </span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                -
+                                            </span>
+                                        }
+
+                                    </td>
+
+
+                                    <!-- Estado -->
+                                    <td class="text-center pe-4">
+
+                                        <span class="badge @badgeClass">
+                                            @estado
+                                        </span>
+
+                                    </td>
+
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+
+                                <td colspan="9"
+                                    class="text-center py-5 text-muted">
+
+                                    No se encontraron lotes registrados.
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

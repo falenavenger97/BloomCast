@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>@ViewData["Title"] — BloomCast</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sage:   #7a9b76;
+      --sage-l: #a8c4a4;
+      --cream:  #f5f0e8;
+      --bark:   #3d2b1f;
+      --bark-l: #6b4c38;
+      --rose:   #c97d6e;
+      --gold:   #c9a85c;
+      --white:  #fdfaf5;
+      --shadow: 0 4px 24px rgba(61,43,31,.10);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--bark);
+      min-height: 100vh;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--bark);
+      padding: 0 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      box-shadow: 0 2px 16px rgba(0,0,0,.18);
+    }
+
+    .nav-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.7rem;
+      font-weight: 300;
+      color: var(--gold);
+      letter-spacing: .08em;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    .nav-brand span { color: var(--sage-l); font-style: italic; }
+
+    .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    }
+
+    .nav-links a {
+    color: #d8cdbf;
+    text-decoration: none;
+    font-size: .88rem;
+    transition: color .2s;
+    position: relative;
+    }
+
+    .nav-links a:hover {
+    color: var(--white);
+    }
+
+    .nav-links a::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    width: 0;
+    height: 1px;
+    background: var(--sage-l);
+    transition: width .2s;
+    }
+
+    .nav-links a:hover::after {
+    width: 100%;
+    }
+
+    .nav-links a.active {
+        color: var(--white);
+    }
+
+    .nav-links a.active::after {
+        width: 100%;
+    }
+
+    .nav-user {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      color: #c8b89a;
+      font-size: .875rem;
+    }
+
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--sage);
+      color: var(--sage-l);
+      padding: .35rem .9rem;
+      border-radius: 4px;
+      font-size: .8rem;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all .2s;
+    }
+
+    .btn-logout:hover { background: var(--sage); color: var(--white); }
+
+    main { padding: 2.5rem; max-width: 1300px; margin: 0 auto; }
+  </style>
+</head>
+<body>
+
+@{
+    var currentController =
+        ViewContext.RouteData.Values["controller"]?.ToString();
+}
+  @if (User.Identity?.IsAuthenticated == true)
+  {
+        <nav>
+            <div style="display:flex;align-items:center;gap:2rem;">
+
+                <div class="nav-brand">
+                    🌸 Bloom<span>Cast</span>
+                </div>
+
+                <div class="nav-links">
+                    <a asp-controller="Home" asp-action="Index">Dashboard</a>
+
+                    @if (User.IsInRole("Administrador"))
+                    {
+                        <a asp-controller="Users" asp-action="Index">
+                            Usuarios
+                        </a>
+
+                        <a asp-controller="Lots" asp-action="Index">
+                            Lotes
+                        </a>
+                    }
+
+                    <a asp-controller="Sales" asp-action="Index">
+                        Ventas
+                    </a>
+                </div>
+
+            </div>
+
+            <div class="nav-user">
+                <span>@User.Identity.Name</span>
+
+                <form method="post"
+                      asp-controller="Account"
+                      asp-action="Logout"
+                      style="margin:0">
+                    @Html.AntiForgeryToken()
+
+                    <button type="submit" class="btn-logout">
+                        Cerrar sesión
+                    </button>
+                </form>
+            </div>
+        </nav>
+  }
+  <main>
+    @RenderBody()
+  </main>
+  @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

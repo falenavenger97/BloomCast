@@ -1,0 +1,128 @@
+@model MfaViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Verificación MFA";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BloomCast — Verificación 2FA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root { --sage:#7a9b76; --cream:#f5f0e8; --bark:#3d2b1f; --bark-l:#6b4c38; --gold:#c9a85c; --rose:#c97d6e; --white:#fdfaf5; }
+    body { font-family:'DM Sans',sans-serif; min-height:100vh; background:var(--cream); display:flex; align-items:center; justify-content:center; }
+    .card {
+      background:var(--white);
+      border-radius:16px;
+      padding:3rem 2.5rem;
+      width:100%;
+      max-width:420px;
+      box-shadow:0 8px 40px rgba(61,43,31,.12);
+      text-align:center;
+    }
+    .icon { font-size:3.5rem; margin-bottom:1rem; }
+    h2 { font-family:'Cormorant Garamond',serif; font-size:1.9rem; font-weight:400; color:var(--bark); margin-bottom:.3rem; }
+    .sub { color:var(--bark-l); font-size:.875rem; margin-bottom:2rem; line-height:1.5; }
+
+    .otp-wrap { display:flex; justify-content:center; gap:.6rem; margin-bottom:1.5rem; }
+    .otp-input {
+      width:46px; height:56px;
+      border:2px solid #d8cfc0;
+      border-radius:10px;
+      font-size:1.4rem;
+      font-weight:500;
+      text-align:center;
+      background:var(--cream);
+      color:var(--bark);
+      outline:none;
+      transition:border-color .2s, box-shadow .2s;
+    }
+    .otp-input:focus { border-color:var(--sage); box-shadow:0 0 0 3px rgba(122,155,118,.18); }
+
+    /* Hidden real input for form submission */
+    #Codigo { display:none; }
+
+    .btn-primary {
+      width:100%;
+      padding:.85rem;
+      background:var(--bark);
+      color:var(--gold);
+      border:none;
+      border-radius:8px;
+      font-family:'Cormorant Garamond',serif;
+      font-size:1.1rem;
+      font-weight:600;
+      letter-spacing:.06em;
+      cursor:pointer;
+      transition:background .2s, transform .1s;
+    }
+    .btn-primary:hover { background:var(--bark-l); transform:translateY(-1px); }
+
+    .back { display:inline-block; margin-top:1.2rem; color:var(--bark-l); font-size:.85rem; text-decoration:none; }
+    .back:hover { color:var(--sage); }
+
+    .error-msg { background:#fff0ee; border:1px solid #f5c0b0; border-radius:8px; padding:.6rem 1rem; margin-bottom:1.2rem; color:#8b3a2a; font-size:.85rem; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🔐</div>
+  <h2>Verificación 2FA</h2>
+  <p class="sub">Ingresa el código de 6 dígitos de tu aplicación autenticadora</p>
+
+  @if (!ViewData.ModelState.IsValid)
+  {
+    <div class="error-msg">@Html.ValidationSummary(false)</div>
+  }
+
+  <form method="post" asp-controller="Account" asp-action="Mfa" id="mfaForm">
+    @Html.AntiForgeryToken()
+
+    <div class="otp-wrap" id="otpBoxes">
+      @for (int i = 0; i < 6; i++)
+      {
+        <input class="otp-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="@i" />
+      }
+    </div>
+
+    <input asp-for="Codigo" id="Codigo" />
+
+    <button type="submit" class="btn-primary">Verificar →</button>
+  </form>
+
+  <a href="/Account/Login" class="back">← Volver al login</a>
+</div>
+
+<script>
+  const boxes = document.querySelectorAll('.otp-input');
+  const hidden = document.getElementById('Codigo');
+
+  boxes.forEach((box, i) => {
+    box.addEventListener('input', () => {
+      box.value = box.value.replace(/[^0-9]/g, '');
+      if (box.value && i < 5) boxes[i + 1].focus();
+      updateHidden();
+    });
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !box.value && i > 0) boxes[i - 1].focus();
+    });
+    box.addEventListener('paste', e => {
+      const txt = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+      [...txt].forEach((ch, j) => { if (boxes[j]) boxes[j].value = ch; });
+      updateHidden();
+      boxes[Math.min(txt.length, 5)].focus();
+      e.preventDefault();
+    });
+  });
+
+  function updateHidden() {
+    hidden.value = [...boxes].map(b => b.value).join('');
+  }
+
+  document.getElementById('mfaForm').addEventListener('submit', () => updateHidden());
+</script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+@model BloomCast.Models.LoteCreateViewModel
+
+@{
+    ViewData["Title"] = "Registrar lote";
+}
+
+<div class="container py-4">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Registrar nuevo lote</h2>
+            <p class="text-muted mb-0">
+                Registra el ingreso de un nuevo lote de orquídeas al inventario.
+            </p>
+        </div>
+
+        <a asp-controller="Lots"
+           asp-action="Index"
+           class="btn btn-outline-secondary">
+            Volver
+        </a>
+    </div>
+
+
+    <div class="row justify-content-center">
+        <div class="col-lg-7 col-xl-6">
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+
+                    <form asp-controller="Lots"
+                          asp-action="Create"
+                          method="post">
+
+                        @Html.AntiForgeryToken()
+
+                        <!-- Errores generales -->
+                        <div asp-validation-summary="ModelOnly"
+                             class="alert alert-danger"
+                             role="alert">
+                        </div>
+
+
+                        <!-- Orquídea -->
+                        <div class="mb-4">
+
+                            <label asp-for="OrquideaId"
+                                   class="form-label fw-semibold">
+                                Orquídea
+                            </label>
+
+                            <select asp-for="OrquideaId"
+                                    asp-items="ViewBag.Orquideas"
+                                    class="form-select">
+
+                                <option value="">
+                                    -- Selecciona una orquídea --
+                                </option>
+
+                            </select>
+
+                            <span asp-validation-for="OrquideaId"
+                                  class="text-danger small">
+                            </span>
+
+                            <div class="form-text">
+                                Selecciona la variedad correspondiente al lote recibido.
+                            </div>
+                        </div>
+
+
+                        <!-- Cantidad -->
+                        <div class="mb-4">
+
+                            <label asp-for="CantidadActual"
+                                   class="form-label fw-semibold">
+                                Cantidad actual
+                            </label>
+
+                            <input asp-for="CantidadActual"
+                                   type="number"
+                                   min="1"
+                                   step="1"
+                                   class="form-control"
+                                   placeholder="Ej. 20" />
+
+                            <span asp-validation-for="CantidadActual"
+                                  class="text-danger small">
+                            </span>
+
+                            <div class="form-text">
+                                Número de unidades recibidas en este lote.
+                            </div>
+                        </div>
+
+
+                        <!-- Información automática -->
+                        <div class="alert alert-light border mb-4">
+
+                            <div class="fw-semibold mb-2">
+                                Información generada por BloomCast
+                            </div>
+
+                            <small class="text-muted">
+                                Al registrar el lote, BloomCast generará automáticamente:
+                            </small>
+
+                            <ul class="small text-muted mb-0 mt-2">
+                                <li>Código único del lote.</li>
+                                <li>Cantidad inicial.</li>
+                                <li>Fecha de ingreso.</li>
+                                <li>Fecha de floración.</li>
+                                <li>
+                                    Fecha estimada de caducidad según la vida
+                                    comercial de la orquídea.
+                                </li>
+                            </ul>
+
+                        </div>
+
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-end gap-2">
+
+                            <a asp-controller="Lots"
+                               asp-action="Index"
+                               class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+
+                            <button type="submit"
+                                    class="btn btn-primary">
+                                Registrar lote
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

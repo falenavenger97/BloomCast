@@ -1,0 +1,136 @@
+# =========================================================
+# BloomCast .gitignore
+# .NET 8 + Razor + PostgreSQL + Python / Machine Learning
+# =========================================================
+
+
+# ---------------------------------------------------------
+# SECRETS / ENVIRONMENT VARIABLES
+# ---------------------------------------------------------
+
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Permitimos el template
+!.env.example
+
+
+# ---------------------------------------------------------
+# .NET / VISUAL STUDIO
+# ---------------------------------------------------------
+
+bin/
+obj/
+.vs/
+
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+
+# ---------------------------------------------------------
+# .NET LOCAL CONFIG / SECRETS
+# ---------------------------------------------------------
+
+appsettings.Development.json
+appsettings.Local.json
+
+# User secrets are normally outside project,
+# but ignore if one is ever generated locally
+secrets.json
+
+
+# ---------------------------------------------------------
+# PYTHON
+# ---------------------------------------------------------
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+
+# ---------------------------------------------------------
+# MACHINE LEARNING MODELS
+# ---------------------------------------------------------
+
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.keras
+
+# TensorFlow
+checkpoint
+*.ckpt
+*.pb
+
+
+# ---------------------------------------------------------
+# LOGS
+# ---------------------------------------------------------
+
+*.log
+logs/
+
+
+# ---------------------------------------------------------
+# DATABASE / BACKUPS
+# ---------------------------------------------------------
+
+*.sql
+*.dump
+*.backup
+*.bak
+
+
+# ---------------------------------------------------------
+# IDEs
+# ---------------------------------------------------------
+
+.idea/
+
+# Puedes quitar esto si quieres compartir configuración VS Code
+.vscode/
+
+
+# ---------------------------------------------------------
+# OPERATING SYSTEM
+# ---------------------------------------------------------
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# ---------------------------------------------------------
+# TEMPORARY FILES
+# ---------------------------------------------------------
+
+*.tmp
+*.temp
+*.cache
+~$*
