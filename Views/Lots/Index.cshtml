@@ -1,5 +1,4 @@
-@model IEnumerable<BloomCast.Models.Lote>
-
+@model IEnumerable<BloomCast.Contracts.Lots.LotResponse>
 @{
     ViewData["Title"] = "Lotes";
 
@@ -684,88 +683,53 @@
 
                     @foreach (var lote in Model)
                     {
-                        string estado;
-                        string statusClass;
-                        string diasTexto = "—";
-                        string diasClass = "";
-
-                        int? diasRestantes = null;
-
-
-                        if (lote.CantidadActual <= 0)
-                        {
-                            estado = "Agotado";
-                            statusClass = "status-empty";
-                        }
-                        else if (!lote.FechaCaducidad.HasValue)
-                        {
-                            estado = "Sin fecha";
-                            statusClass = "status-empty";
-                        }
-                        else
-                        {
-                            diasRestantes =
-                                (lote.FechaCaducidad.Value.Date - hoy).Days;
-
-                            if (diasRestantes < 0)
+                        var statusClass =
+                            lote.Estado switch
                             {
-                                estado = "Vencido";
-                                statusClass = "status-expired";
+                                "Estable" =>
+                                    "status-stable",
 
-                                diasTexto =
-                                    $"{Math.Abs(diasRestantes.Value)} días vencido";
-                            }
-                            else if (diasRestantes == 0)
+                                "Próximo" =>
+                                    "status-warning",
+
+                                "Crítico" =>
+                                    "status-critical",
+
+                                "Vencido" =>
+                                    "status-expired",
+
+                                "Agotado" =>
+                                    "status-empty",
+
+                                _ =>
+                                    "status-empty"
+                            };
+
+
+                        var diasClass =
+                            lote.Estado switch
                             {
-                                estado = "Crítico";
-                                statusClass = "status-critical";
+                                "Crítico" =>
+                                    "days-critical",
 
-                                diasTexto = "Hoy";
-                                diasClass = "days-critical";
-                            }
-                            else if (diasRestantes <= 7)
-                            {
-                                estado = "Crítico";
-                                statusClass = "status-critical";
+                                "Próximo" =>
+                                    "days-warning",
 
-                                diasTexto =
-                                    $"{diasRestantes.Value} días";
-
-                                diasClass = "days-critical";
-                            }
-                            else if (diasRestantes <= 30)
-                            {
-                                estado = "Próximo";
-                                statusClass = "status-warning";
-
-                                diasTexto =
-                                    $"{diasRestantes.Value} días";
-
-                                diasClass = "days-warning";
-                            }
-                            else
-                            {
-                                estado = "Estable";
-                                statusClass = "status-stable";
-
-                                diasTexto =
-                                    $"{diasRestantes.Value} días";
-                            }
-                        }
+                                _ =>
+                                    ""
+                            };
 
 
                         <tr>
 
-                            <!-- Código -->
-
                             <td data-sort="@lote.CodigoLote">
+
                                 <span class="lot-code">
                                     @lote.CodigoLote
                                 </span>
+
                             </td>
 
-
-                            <!-- Orquídea -->
 
                             <td>
 
@@ -778,11 +742,11 @@
                                     <div>
 
                                         <div class="orchid-name">
-                                            @(lote.Orquidea?.Variedad ?? "N/A")
+                                            @lote.Variedad
                                         </div>
 
                                         <div class="orchid-type">
-                                            @(lote.Orquidea?.Tipo ?? "N/A")
+                                            @lote.Tipo
                                         </div>
 
                                     </div>
@@ -792,29 +756,27 @@
                             </td>
 
 
-                            <!-- Stock -->
-
                             <td>
 
                                 <span class="quantity-current">
                                     @lote.CantidadActual
                                 </span>
 
-                                <span style="color:var(--bark-l);font-size:.76rem;">
+                                <span style="
+                                    color:var(--bark-l);
+                                    font-size:.76rem;">
+
                                     / @lote.CantidadInicial
+
                                 </span>
 
                             </td>
 
 
-                            <!-- Ingreso -->
-
                             <td>
                                 @lote.FechaIngreso.ToString("dd/MM/yyyy")
                             </td>
 
-
-                            <!-- Caducidad -->
 
                             <td>
 
@@ -832,32 +794,59 @@
                             </td>
 
 
-                            <!-- Días -->
-
                             <td>
 
-                                @if (lote.CantidadActual <= 0)
+                                @if (lote.Estado == "Agotado")
                                 {
                                     <span style="color:var(--bark-l)">
                                         —
                                     </span>
                                 }
+                                else if (lote.DiasRestantes.HasValue)
+                                {
+                                    if (lote.DiasRestantes < 0)
+                                    {
+                                        <span class="@diasClass">
+
+                                            @Math.Abs(
+                                                lote.DiasRestantes.Value
+                                            ) días vencido
+
+                                        </span>
+                                    }
+                                    else if (lote.DiasRestantes == 0)
+                                    {
+                                        <span class="@diasClass">
+                                            Hoy
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="@diasClass">
+
+                                            @lote.DiasRestantes días
+
+                                        </span>
+                                    }
+                                }
                                 else
                                 {
-                                    <span class="@diasClass">
-                                        @diasTexto
+                                    <span style="color:var(--bark-l)">
+                                        —
                                     </span>
                                 }
 
                             </td>
 
 
-                            <!-- Estado -->
-
                             <td>
 
-                                <span class="status-badge @statusClass">
-                                    @estado
+                                <span class="
+                                    status-badge
+                                    @statusClass">
+
+                                    @lote.Estado
+
                                 </span>
 
                             </td>

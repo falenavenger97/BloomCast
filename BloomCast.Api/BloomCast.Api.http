@@ -1,0 +1,6 @@
+@BloomCast.Api_HostAddress = http://localhost:5209
+
+GET {{BloomCast.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

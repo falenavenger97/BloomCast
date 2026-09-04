@@ -2,10 +2,41 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using BloomCast.Data;
 using BloomCast.Services;
+using BloomCast.Services.Api;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+
+var apiBaseUrl =
+    builder.Configuration["ApiSettings:BaseUrl"];
+
+if (string.IsNullOrWhiteSpace(apiBaseUrl))
+{
+    throw new InvalidOperationException(
+        "No se encontró ApiSettings:BaseUrl en la configuración."
+    );
+}
+
+
+builder.Services.AddHttpClient<
+    ILotsApiService,
+    LotsApiService>(
+    client =>
+    {
+        client.BaseAddress =
+            new Uri(apiBaseUrl);
+
+        client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+                "application/json"
+            )
+        );
+
+        client.Timeout =
+            TimeSpan.FromSeconds(30);
+    });
 
 builder.Services.AddDbContext<BloomCastDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

@@ -17,4 +17,18 @@
     <PackageReference Include="Otp.Net" Version="1.4.0" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
+	<ItemGroup>
+		<Compile Remove="BloomCast.Api\**\*.cs" />
+		<Content Remove="BloomCast.Api\**\*" />
+		<EmbeddedResource Remove="BloomCast.Api\**\*" />
+		<None Remove="BloomCast.Api\**\*" />
+
+		<Compile Remove="BloomCast.Contracts\**\*.cs" />
+		<Content Remove="BloomCast.Contracts\**\*" />
+		<EmbeddedResource Remove="BloomCast.Contracts\**\*" />
+		<None Remove="BloomCast.Contracts\**\*" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="BloomCast.Contracts\BloomCast.Contracts.csproj" />
+	</ItemGroup>
 </Project>
