@@ -19,6 +19,41 @@ if (string.IsNullOrWhiteSpace(apiBaseUrl))
     );
 }
 
+builder.Services.AddHttpClient<
+    IDashboardApiService,
+    DashboardApiService>(
+    client =>
+    {
+        client.BaseAddress =
+            new Uri(apiBaseUrl);
+
+        client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+                "application/json"
+            )
+        );
+
+        client.Timeout =
+            TimeSpan.FromSeconds(30);
+    });
+
+builder.Services.AddHttpClient<
+    ISalesApiService,
+    SalesApiService>(
+    client =>
+    {
+        client.BaseAddress =
+            new Uri(apiBaseUrl);
+
+        client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+                "application/json"
+            )
+        );
+
+        client.Timeout =
+            TimeSpan.FromSeconds(30);
+    });
 
 builder.Services.AddHttpClient<
     ILotsApiService,

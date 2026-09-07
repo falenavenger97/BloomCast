@@ -240,19 +240,27 @@ namespace BloomCast.Models
     public class DashboardViewModel
     {
         public string NombreUsuario { get; set; } = "";
-        public string RolNombre    { get; set; } = "";
 
-        // Chart data
-        public List<PrediccionDemanda> Predicciones { get; set; } = new();
+        public string RolNombre { get; set; } = "";
+        public int TotalOrquideas { get; set; }
 
-        // Lotes próximos a caducar (≤ 30 días)
-        public List<Lote> LotesPorCaducar { get; set; } = new();
+        public int TotalLotes { get; set; }
 
-        // Stats
-        public int TotalOrquideas   { get; set; }
-        public int TotalLotes       { get; set; }
-        public decimal VentasHoy    { get; set; }
-        public int LotesCriticos    { get; set; }   // ≤ 7 días
+        public decimal VentasHoy { get; set; }
+
+        public int LotesCriticos { get; set; }
+
+
+        public List<
+            BloomCast.Contracts.Dashboard.DashboardPredictionResponse
+        > Predicciones
+        { get; set; } = new();
+
+
+        public List<
+            BloomCast.Contracts.Dashboard.DashboardLotResponse
+        > LotesPorCaducar
+        { get; set; } = new();
     }
     public class UserCreateViewModel
     {

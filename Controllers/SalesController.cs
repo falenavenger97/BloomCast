@@ -1,354 +1,365 @@
-﻿using BloomCast.Data;
+﻿using BloomCast.Contracts.Sales;
 using BloomCast.Models;
+using BloomCast.Services.Api;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace BloomCast.Controllers
 {
     [Authorize]
     public class SalesController : Controller
     {
-        private readonly BloomCastDbContext _db;
+        private readonly ISalesApiService _salesApi;
 
-        public SalesController(BloomCastDbContext db)
+        public SalesController(
+            ISalesApiService salesApi)
         {
-            _db = db;
+            _salesApi = salesApi;
         }
 
+
+        // =========================================================
         // GET: /Sales
-        public async Task<IActionResult> Index(string search, DateTime? fecha)
+        // =========================================================
+
+        public async Task<IActionResult> Index(
+            string? search,
+            DateTime? fecha)
         {
-            var query = _db.Ventas
-                .Include(v => v.Usuario)
-                .Include(v => v.Detalles)
-                    .ThenInclude(d => d.Lote)
-                        .ThenInclude(l => l.Orquidea)
-                .AsQueryable();
-
-            // filtro por usuario
-            if (!string.IsNullOrWhiteSpace(search))
+            try
             {
-                search = search.Trim().ToLower();
+                var ventas =
+                    await _salesApi.GetSalesAsync(
+                        search,
+                        fecha
+                    );
 
-                query = query.Where(v =>
-                    v.Usuario!.NombreCompleto.ToLower().Contains(search) ||
-                    v.UsuarioId.ToString().Contains(search));
+                ViewBag.Search = search;
+
+                ViewBag.Fecha =
+                    fecha?.ToString("yyyy-MM-dd");
+
+                return View(ventas);
             }
-
-            // filtro por fecha
-            if (fecha.HasValue)
+            catch (HttpRequestException ex)
             {
-                var inicio = fecha.Value.Date.ToUniversalTime();
-                var fin = inicio.AddDays(1);
+                TempData["Error"] =
+                    $"No se pudieron cargar las ventas: {ex.Message}";
 
-                query = query.Where(v =>
-                    v.FechaVenta >= inicio &&
-                    v.FechaVenta < fin);
+                ViewBag.Search = search;
+
+                ViewBag.Fecha =
+                    fecha?.ToString("yyyy-MM-dd");
+
+                return View(
+                    new List<SaleResponse>()
+                );
             }
-
-            var ventas = await query
-                .OrderByDescending(v => v.Id)
-                .ToListAsync();
-
-            ViewBag.Search = search;
-            ViewBag.Fecha = fecha?.ToString("yyyy-MM-dd");
-
-            return View(ventas);
         }
 
+
+        // =========================================================
         // GET: /Sales/Create
+        // =========================================================
+
+        [HttpGet]
         public async Task<IActionResult> Create()
         {
-            // Cargar usuarios activos para el select
-            ViewBag.Usuarios = new SelectList(
-                await _db.Usuarios.Where(u => u.Activo).ToListAsync(),
-                "Id", "NombreCompleto");
-
-            // Cargar lotes disponibles
-            var lotes = await _db.Lotes
-                .Include(l => l.Orquidea)
-                .Where(l => l.CantidadActual > 0)
-                .Select(l => new
-                {
-                    l.Id,
-                    Text = $"{l.CodigoLote} - {l.Orquidea!.Variedad} - Stock: {l.CantidadActual}",
-                    PrecioBase = l.Orquidea!.PrecioBase,
-                    Stock = l.CantidadActual
-                })
-                .OrderBy(l => l.Id)
-                .ToListAsync();
-
-            ViewBag.LotesList = lotes; // Guardar la lista completa
-
-            var vm = new SaleCreateViewModel
+            try
             {
-                Fechaventa = DateTime.Now,
-                Items = new List<SaleItemViewModel>
-        {
-            new SaleItemViewModel { Cantidad = 1 }
-        }
-            };
+                await CargarDatosVentaAsync();
 
-            return View(vm);
+                var vm =
+                    new SaleCreateViewModel
+                    {
+                        Fechaventa =
+                            DateTime.Now,
+
+                        Items =
+                            new List<SaleItemViewModel>
+                            {
+                                new SaleItemViewModel
+                                {
+                                    Cantidad = 1
+                                }
+                            }
+                    };
+
+                return View(vm);
+            }
+            catch (HttpRequestException ex)
+            {
+                TempData["Error"] =
+                    $"No se pudieron cargar los datos de la venta: {ex.Message}";
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
+            }
         }
 
+
+        // =========================================================
         // POST: /Sales/Create
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(SaleCreateViewModel vm)
+        public async Task<IActionResult> Create(
+            SaleCreateViewModel vm)
         {
-            // Recargar ViewBags
-            ViewBag.Usuarios = new SelectList(
-                await _db.Usuarios.Where(u => u.Activo).ToListAsync(),
-                "Id", "NombreCompleto");
+            vm.Items =
+                vm.Items?
+                    .Where(x =>
+                        x.LoteId > 0 &&
+                        x.Cantidad > 0)
+                    .ToList()
+                ?? new List<SaleItemViewModel>();
 
-            ViewBag.Lotes = await _db.Lotes
-                .Include(l => l.Orquidea)
-                .Where(l => l.CantidadActual > 0)
-                .Select(l => new {
-                    l.Id,
-                    DisplayText = $"{l.CodigoLote} - {l.Orquidea!.Variedad}"
-                })
-                .ToListAsync();
-
-            // Validación más robusta
-            vm.Items = vm.Items?.Where(x => x.LoteId > 0 && x.Cantidad > 0).ToList() ?? new();
 
             if (!vm.Items.Any())
             {
-                ModelState.AddModelError("Items", "Debes agregar al menos un producto válido.");
-                return View(vm);
+                ModelState.AddModelError(
+                    "Items",
+                    "Debes agregar al menos un producto válido."
+                );
             }
+
 
             if (!ModelState.IsValid)
             {
+                await CargarDatosVentaSeguroAsync();
+
                 return View(vm);
             }
 
-            using var trx = await _db.Database.BeginTransactionAsync();
 
             try
             {
-                // Obtener usuario autenticado o usar el seleccionado
-                var userId = vm.UsuarioId > 0
-                    ? vm.UsuarioId
-                    : int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-
-                var venta = new Venta
-                {
-                    UsuarioId = userId,
-                    FechaVenta = vm.Fechaventa.ToUniversalTime(),
-                    Total = 0
-                };
-
-                _db.Ventas.Add(venta);
-                await _db.SaveChangesAsync();
-
-                decimal total = 0;
-                var detalles = new List<DetalleVenta>();
-
-                foreach (var item in vm.Items)
-                {
-                    var lote = await _db.Lotes
-                        .Include(l => l.Orquidea)
-                        .FirstOrDefaultAsync(l => l.Id == item.LoteId);
-
-                    if (lote == null)
+                var request =
+                    new CreateSaleRequest
                     {
-                        throw new Exception($"Lote con ID {item.LoteId} no encontrado.");
-                    }
+                        UsuarioId =
+                            vm.UsuarioId,
 
-                    if (lote.CantidadActual < item.Cantidad)
-                    {
-                        throw new Exception(
-                            $"Stock insuficiente para el lote {lote.CodigoLote}. " +
-                            $"Disponible: {lote.CantidadActual}, Solicitado: {item.Cantidad}");
-                    }
+                        FechaVenta =
+                            vm.Fechaventa,
 
-                    // Usar el precio del lote o el enviado
-                    var precioUnitario = item.PrecioUnitario > 0
-                        ? item.PrecioUnitario
-                        : lote.Orquidea!.PrecioBase;
+                        Items =
+                            vm.Items
+                                .Select(item =>
+                                    new CreateSaleItemRequest
+                                    {
+                                        LoteId =
+                                            item.LoteId,
 
-                    var subtotal = item.Cantidad * precioUnitario;
+                                        Cantidad =
+                                            item.Cantidad,
 
-                    var detalle = new DetalleVenta
-                    {
-                        VentaId = venta.Id,
-                        LoteId = lote.Id,
-                        Cantidad = item.Cantidad,
-                        PrecioUnitario = precioUnitario,
-                        Subtotal = subtotal
+                                        PrecioUnitario =
+                                            item.PrecioUnitario
+                                    })
+                                .ToList()
                     };
 
-                    detalles.Add(detalle);
-                    lote.CantidadActual -= item.Cantidad;
-                    total += subtotal;
-                }
 
-                _db.DetalleVentas.AddRange(detalles);
-                venta.Total = total;
+                var venta =
+                    await _salesApi.CreateSaleAsync(
+                        request
+                    );
 
-                await _db.SaveChangesAsync();
-                await trx.CommitAsync();
 
-                TempData["Success"] = $"Venta #{venta.Id} registrada correctamente. Total: Bs {total:N2}";
-                return RedirectToAction(nameof(Index));
+                TempData["Success"] =
+                    $"Venta #{venta.Id} registrada correctamente. " +
+                    $"Total: Bs {venta.Total:N2}";
+
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
-                await trx.RollbackAsync();
-                ModelState.AddModelError("", ex.Message);
+                ModelState.AddModelError(
+                    "",
+                    ex.Message
+                );
+
+                await CargarDatosVentaSeguroAsync();
+
                 return View(vm);
             }
         }
 
-        // GET: /Sales/DeletePassword/{id}
-        [HttpGet]
-        public IActionResult DeletePassword(int id)
-        {
-            // Buscar la venta para mostrar información
-            var venta = _db.Ventas
-                .Include(v => v.Usuario)
-                .FirstOrDefault(v => v.Id == id);
 
-            if (venta == null)
-            {
-                return NotFound();
-            }
-
-            ViewBag.VentaId = id;
-            ViewBag.VentaInfo = $"Venta #{id} - {venta.Usuario?.NombreCompleto} - Total: Bs {venta.Total:N2}";
-            return PartialView("_DeletePasswordModal");
-        }
-
+        // =========================================================
         // POST: /Sales/DeleteWithPassword
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteWithPassword(int id, string password)
+        public async Task<IActionResult> DeleteWithPassword(
+            int id,
+            string password)
         {
-            try
+            if (string.IsNullOrWhiteSpace(password))
             {
-                var usuarioAdmin = await _db.Usuarios.FindAsync(1);
-
-                if (usuarioAdmin == null)
+                return Json(new
                 {
-                    return Json(new { success = false, message = "Usuario no encontrado." });
-                }
-
-                // Verificar contraseña con BCrypt
-                bool passwordValid = false;
-
-                try
-                {
-                    if (!string.IsNullOrEmpty(usuarioAdmin.PasswordHash))
-                    {
-                        passwordValid = BCrypt.Net.BCrypt.Verify(password, usuarioAdmin.PasswordHash);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error verificando BCrypt: {ex.Message}");
-                    passwordValid = false;
-                }
-
-                if (!passwordValid)
-                {
-                    return Json(new { success = false, message = "Contraseña incorrecta." });
-                }
-
-                // Buscar la venta
-                var venta = await _db.Ventas
-                    .Include(v => v.Detalles)
-                    .FirstOrDefaultAsync(v => v.Id == id);
-
-                if (venta == null)
-                {
-                    return Json(new { success = false, message = "Venta no encontrada." });
-                }
-
-                using var trx = await _db.Database.BeginTransactionAsync();
-                try
-                {
-                    // Restaurar stock de los lotes
-                    foreach (var detalle in venta.Detalles)
-                    {
-                        var lote = await _db.Lotes.FindAsync(detalle.LoteId);
-                        if (lote != null)
-                        {
-                            lote.CantidadActual += detalle.Cantidad;
-                        }
-                    }
-
-                    // Eliminar detalles y venta
-                    _db.DetalleVentas.RemoveRange(venta.Detalles);
-                    _db.Ventas.Remove(venta);
-
-                    await _db.SaveChangesAsync();
-                    await trx.CommitAsync();
-
-                    return Json(new { success = true, message = $"Venta #{id} eliminada correctamente. Stock restaurado." });
-                }
-                catch (Exception ex)
-                {
-                    await trx.RollbackAsync();
-                    return Json(new { success = false, message = $"Error al eliminar: {ex.Message}" });
-                }
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = $"Error: {ex.Message}" });
-            }
-        }
-        // GET: /Sales/GetVentaDetails/{id}
-        [HttpGet]
-        public async Task<IActionResult> GetVentaDetails(int id)
-        {
-            try
-            {
-                var venta = await _db.Ventas
-                    .Include(v => v.Usuario)
-                    .Include(v => v.Detalles)
-                        .ThenInclude(d => d.Lote)
-                            .ThenInclude(l => l.Orquidea)
-                    .FirstOrDefaultAsync(v => v.Id == id);
-
-                if (venta == null)
-                {
-                    return Json(new { success = false, message = "Venta no encontrada" });
-                }
-
-                var detalles = venta.Detalles.Select(d => new
-                {
-                    producto = d.Lote?.Orquidea?.Variedad ?? "Producto no disponible",
-                    codigoLote = d.Lote?.CodigoLote ?? "N/A",
-                    cantidad = d.Cantidad,
-                    precioUnitario = d.PrecioUnitario,
-                    subtotal = d.Subtotal
+                    success = false,
+                    message =
+                        "Debes ingresar la contraseña de administrador."
                 });
+            }
 
-                var result = new
+
+            try
+            {
+                await _salesApi.DeleteSaleAsync(
+                    id,
+                    password
+                );
+
+
+                return Json(new
                 {
                     success = true,
+
+                    message =
+                        $"Venta #{id} eliminada correctamente. " +
+                        $"Stock restaurado."
+                });
+            }
+            catch (HttpRequestException ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+        }
+
+
+        // =========================================================
+        // GET: /Sales/GetVentaDetails/{id}
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> GetVentaDetails(
+            int id)
+        {
+            try
+            {
+                var venta =
+                    await _salesApi.GetSaleByIdAsync(id);
+
+
+                if (venta == null)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message =
+                            "Venta no encontrada."
+                    });
+                }
+
+
+                return Json(new
+                {
+                    success = true,
+
                     venta = new
                     {
-                        id = venta.Id,
-                        fechaVenta = venta.FechaVenta,
-                        usuario = venta.Usuario?.NombreCompleto ?? "Usuario #" + venta.UsuarioId,
-                        total = venta.Total
-                    },
-                    detalles = detalles
-                };
+                        id =
+                            venta.Id,
 
-                return Json(result);
+                        fechaVenta =
+                            venta.FechaVenta,
+
+                        usuario =
+                            venta.UsuarioNombre,
+
+                        total =
+                            venta.Total
+                    },
+
+                    detalles =
+                        venta.Detalles.Select(d => new
+                        {
+                            producto =
+                                d.Producto,
+
+                            codigoLote =
+                                d.CodigoLote,
+
+                            cantidad =
+                                d.Cantidad,
+
+                            precioUnitario =
+                                d.PrecioUnitario,
+
+                            subtotal =
+                                d.Subtotal
+                        })
+                });
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
-                return Json(new { success = false, message = $"Error: {ex.Message}" });
+                return Json(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+        }
+
+
+        // =========================================================
+        // Helpers
+        // =========================================================
+
+        private async Task CargarDatosVentaAsync()
+        {
+            var usuarios =
+                await _salesApi.GetUsersAsync();
+
+            var lotes =
+                await _salesApi.GetAvailableLotsAsync();
+
+
+            ViewBag.Usuarios =
+                new SelectList(
+                    usuarios,
+                    "Id",
+                    "NombreCompleto"
+                );
+
+
+            ViewBag.LotesList =
+                lotes;
+        }
+
+
+        private async Task CargarDatosVentaSeguroAsync()
+        {
+            try
+            {
+                await CargarDatosVentaAsync();
+            }
+            catch
+            {
+                ViewBag.Usuarios =
+                    new SelectList(
+                        Array.Empty<SaleUserResponse>(),
+                        "Id",
+                        "NombreCompleto"
+                    );
+
+                ViewBag.LotesList =
+                    new List<AvailableSaleLotResponse>();
             }
         }
     }

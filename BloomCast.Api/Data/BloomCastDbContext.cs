@@ -11,9 +11,34 @@ public class BloomCastDbContext : DbContext
     {
     }
 
-    public DbSet<Orquidea> Orquideas => Set<Orquidea>();
+    public DbSet<PrediccionDemanda> PrediccionesDemanda =>
+    Set<PrediccionDemanda>();
+    // ============================================================
+    // Inventario
+    // ============================================================
 
-    public DbSet<Lote> Lotes => Set<Lote>();
+    public DbSet<Orquidea> Orquideas =>
+        Set<Orquidea>();
+
+
+    public DbSet<Lote> Lotes =>
+        Set<Lote>();
+
+
+    // ============================================================
+    // Ventas
+    // ============================================================
+
+    public DbSet<Usuario> Usuarios =>
+        Set<Usuario>();
+
+
+    public DbSet<Venta> Ventas =>
+        Set<Venta>();
+
+
+    public DbSet<DetalleVenta> DetalleVentas =>
+        Set<DetalleVenta>();
 
 
     protected override void OnModelCreating(
@@ -21,9 +46,47 @@ public class BloomCastDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<PrediccionDemanda>()
+            .HasOne(p => p.Orquidea)
+            .WithMany()
+            .HasForeignKey(p => p.OrquideaId);
+        // ========================================================
+        // Lote -> Orquídea
+        // ========================================================
+
         modelBuilder.Entity<Lote>()
             .HasOne(l => l.Orquidea)
             .WithMany()
             .HasForeignKey(l => l.OrquideaId);
+
+
+        // ========================================================
+        // Venta -> Usuario
+        // ========================================================
+
+        modelBuilder.Entity<Venta>()
+            .HasOne(v => v.Usuario)
+            .WithMany()
+            .HasForeignKey(v => v.UsuarioId);
+
+
+        // ========================================================
+        // Venta -> Detalles
+        // ========================================================
+
+        modelBuilder.Entity<Venta>()
+            .HasMany(v => v.Detalles)
+            .WithOne(d => d.Venta)
+            .HasForeignKey(d => d.VentaId);
+
+
+        // ========================================================
+        // Detalle -> Lote
+        // ========================================================
+
+        modelBuilder.Entity<DetalleVenta>()
+            .HasOne(d => d.Lote)
+            .WithMany()
+            .HasForeignKey(d => d.LoteId);
     }
 }

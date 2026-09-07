@@ -1,7 +1,6 @@
 @model DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
-    var hoy = DateTime.UtcNow;
     var cultura = new System.Globalization.CultureInfo("es-ES");
 }
 <style>
@@ -185,24 +184,65 @@
     else
     {
       <div class="lote-list">
-        @foreach (var lote in Model.LotesPorCaducar)
-        {
-          var dias = (lote.FechaCaducidad!.Value - hoy).TotalDays;
-          var css  = dias < 0 ? "expirado" : dias <= 7 ? "critico" : dias <= 15 ? "aviso" : "ok";
-          var txt  = dias < 0 ? "Caducado" : dias < 1  ? "¡Hoy caduca!" : dias < 2 ? "1 día" : $"{(int)dias} días";
+                @foreach (var lote in Model.LotesPorCaducar)
+                {
+                    var dias = lote.DiasRestantes ?? 0;
 
-          <div class="lote-item @css">
-            <div class="lote-main">
-              <div class="lote-codigo">@lote.CodigoLote</div>
-              <div class="lote-variedad">@(lote.Orquidea?.Variedad ?? "—")</div>
-              <div class="lote-tipo">@(lote.Orquidea?.Tipo ?? "")</div>
-            </div>
-            <div class="lote-right">
-              <div class="lote-cant">@lote.CantidadActual <span>uds.</span></div>
-              <span class="dias-badge @css">@txt</span>
-            </div>
-          </div>
-        }
+                    var css =
+                        dias <= 7
+                            ? "critico"
+                            : dias <= 15
+                                ? "aviso"
+                                : "ok";
+
+                    var txt =
+                        dias == 0
+                            ? "¡Hoy caduca!"
+                            : dias == 1
+                                ? "1 día"
+                                : $"{dias} días";
+
+
+                    <div class="lote-item @css">
+
+                        <div class="lote-main">
+
+                            <div class="lote-codigo">
+                                @lote.CodigoLote
+                            </div>
+
+                            <div class="lote-variedad">
+                                @lote.Variedad
+                            </div>
+
+                            <div class="lote-tipo">
+                                @lote.Tipo
+                            </div>
+
+                        </div>
+
+
+                        <div class="lote-right">
+
+                            <div class="lote-cant">
+
+                                @lote.CantidadActual
+
+                                <span>
+                                    uds.
+                                </span>
+
+                            </div>
+
+
+                            <span class="dias-badge @css">
+                                @txt
+                            </span>
+
+                        </div>
+
+                    </div>
+                }
       </div>
     }
   </div>
@@ -210,63 +250,223 @@
 </div>
 
 @section Scripts {
-<script>
-(function(){
-  const raw = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-    Model.Predicciones.Select(p => new {
-      mes      = p.FechaObjetivo.ToString("yyyy-MM"),
-      variedad = p.Orquidea != null ? p.Orquidea.Variedad : "Sin variedad",
-      cantidad = p.CantidadEstimada
-    })
-  ));
+    <script>
+        (function() {
 
-  if(!raw.length) return;
+            const raw = @Html.Raw(
+                    System.Text.Json.JsonSerializer.Serialize(
+                        Model.Predicciones.Select(p => new
+                          {
+                              mes =
+                                p.FechaObjetivo.ToString("yyyy-MM"),
 
-  const variedades = [...new Set(raw.map(r => r.variedad))];
-  const meses      = [...new Set(raw.map(r => r.mes))].sort();
+                              variedad =
+                            !string.IsNullOrWhiteSpace(p.Variedad)
+                            ? p.Variedad
+                            : "Sin variedad",
 
-  const palette = [
-    '#7a9b76','#c9a85c','#c97d6e','#6b9bb8','#a37cb5',
-    '#5b8a8b','#d4956a','#8b7b9e','#7b9e87','#b8956a'
-  ];
+                              cantidad =
+                            p.CantidadEstimada
+                          })
+                            )
+                            );
 
-  const datasets = variedades.map((v, i) => ({
-    label: v,
-    data: meses.map(m => raw.filter(r => r.variedad===v && r.mes===m).reduce((s,r)=>s+r.cantidad,0)),
-    borderColor: palette[i % palette.length],
-    backgroundColor: palette[i % palette.length] + '20',
-    borderWidth: 2.5,
-    tension: 0.4,
-    pointRadius: 4,
-    pointHoverRadius: 7,
-    fill: false
-  }));
+            if (!raw.length) return;
 
-  new Chart(document.getElementById('demandChart'), {
-    type: 'line',
-    data: { labels: meses, datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode:'index', intersect:false },
-      plugins: {
-        legend: {
-          position:'bottom',
-          labels:{ color:'#6b4c38', font:{ family:"'DM Sans'", size:11 }, boxWidth:12, padding:12 }
-        },
-        tooltip: {
-          backgroundColor:'#3d2b1f', titleColor:'#c9a85c',
-          bodyColor:'#f5f0e8', borderColor:'#7a9b76',
-          borderWidth:1, cornerRadius:8, padding:11
-        }
-      },
-      scales: {
-        x: { grid:{ color:'rgba(61,43,31,.06)' }, ticks:{ color:'#6b4c38', font:{size:11} } },
-        y: { grid:{ color:'rgba(61,43,31,.06)' }, ticks:{ color:'#6b4c38', font:{size:11} }, beginAtZero:true,
-             title:{ display:true, text:'Cantidad estimada', color:'#9a8070', font:{size:11} } }
-      }
-    }
-  });
-})();
-</script>
+            const variedades =
+                [...new Set(
+                    raw.map(r => r.variedad)
+                )];
+
+            const meses =
+                [...new Set(
+                    raw.map(r => r.mes)
+                )].sort();
+
+
+            const palette = [
+                '#7a9b76',
+                '#c9a85c',
+                '#c97d6e',
+                '#6b9bb8',
+                '#a37cb5',
+                '#5b8a8b',
+                '#d4956a',
+                '#8b7b9e',
+                '#7b9e87',
+                '#b8956a'
+            ];
+
+
+            const datasets =
+                variedades.map((v, i) => ({
+                    label: v,
+
+                    data:
+                        meses.map(m =>
+                            raw
+                                .filter(r =>
+                                    r.variedad === v &&
+                                    r.mes === m
+                                )
+                                .reduce(
+                                    (s, r) =>
+                                        s + r.cantidad,
+                                    0
+                                )
+                        ),
+
+                    borderColor:
+                        palette[i % palette.length],
+
+                    backgroundColor:
+                        palette[i % palette.length] + '20',
+
+                    borderWidth: 2.5,
+
+                    tension: 0.4,
+
+                    pointRadius: 4,
+
+                    pointHoverRadius: 7,
+
+                    fill: false
+                }));
+
+
+            new Chart(
+                document.getElementById(
+                    'demandChart'
+                ),
+                {
+                    type: 'line',
+
+                    data:
+                    {
+                        labels: meses,
+                        datasets
+                    },
+
+                    options:
+                    {
+                        responsive: true,
+
+                        maintainAspectRatio: false,
+
+                        interaction:
+                        {
+                            mode: 'index',
+                            intersect: false
+                        },
+
+                        plugins:
+                        {
+                            legend:
+                            {
+                                position: 'bottom',
+
+                                labels:
+                                {
+                                    color: '#6b4c38',
+
+                                    font:
+                                    {
+                                        family: "'DM Sans'",
+                                        size: 11
+                                    },
+
+                                    boxWidth: 12,
+
+                                    padding: 12
+                                }
+                            },
+
+                            tooltip:
+                            {
+                                backgroundColor:
+                                    '#3d2b1f',
+
+                                titleColor:
+                                    '#c9a85c',
+
+                                bodyColor:
+                                    '#f5f0e8',
+
+                                borderColor:
+                                    '#7a9b76',
+
+                                borderWidth: 1,
+
+                                cornerRadius: 8,
+
+                                padding: 11
+                            }
+                        },
+
+                        scales:
+                        {
+                            x:
+                            {
+                                grid:
+                                {
+                                    color:
+                                        'rgba(61,43,31,.06)'
+                                },
+
+                                ticks:
+                                {
+                                    color:
+                                        '#6b4c38',
+
+                                    font:
+                                    {
+                                        size: 11
+                                    }
+                                }
+                            },
+
+                            y:
+                            {
+                                grid:
+                                {
+                                    color:
+                                        'rgba(61,43,31,.06)'
+                                },
+
+                                ticks:
+                                {
+                                    color:
+                                        '#6b4c38',
+
+                                    font:
+                                    {
+                                        size: 11
+                                    }
+                                },
+
+                                beginAtZero: true,
+
+                                title:
+                                {
+                                    display: true,
+
+                                    text:
+                                        'Cantidad estimada',
+
+                                    color:
+                                        '#9a8070',
+
+                                    font:
+                                    {
+                                        size: 11
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            );
+
+        })();
+    </script>
 }
