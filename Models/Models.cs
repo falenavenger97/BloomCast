@@ -373,6 +373,6 @@ namespace BloomCast.Models
     }
     public class PasswordVerificationModel
     {
-        public string Password { get; set; }
+        public string Password { get; set; } = "";
     }
 }

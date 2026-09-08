@@ -238,6 +238,19 @@ public class UsersApiService : IUsersApiService
             return;
         }
 
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new HttpRequestException(
+                "Solo una cuenta de administrador puede realizar esta acción."
+            );
+        }
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new HttpRequestException(
+                "Tu sesión ha expirado. Inicia sesión nuevamente."
+            );
+        }
 
         var content =
             await response.Content.ReadAsStringAsync();

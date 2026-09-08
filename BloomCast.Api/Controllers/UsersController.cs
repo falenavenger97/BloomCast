@@ -4,6 +4,7 @@ using BloomCast.Contracts.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace BloomCast.Api.Controllers;
 
@@ -498,13 +499,54 @@ public class UsersController : ControllerBase
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Deactivate(
-        int id,
-        CancellationToken cancellationToken)
+    int id,
+    CancellationToken cancellationToken)
     {
+        // ========================================================
+        // Identificar al administrador autenticado desde JWT
+        // ========================================================
+
+        var currentUserClaim =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier
+            );
+
+
+        if (!int.TryParse(
+                currentUserClaim,
+                out var currentUserId))
+        {
+            return Unauthorized(new
+            {
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
+
+        // ========================================================
+        // No permitir auto-desactivación
+        // ========================================================
+
+        if (currentUserId == id)
+        {
+            return BadRequest(new
+            {
+                message =
+                    "No puedes desactivar tu propia cuenta."
+            });
+        }
+
+
+        // ========================================================
+        // Buscar usuario objetivo
+        // ========================================================
+
         var usuario =
             await _db.Usuarios
                 .FirstOrDefaultAsync(
-                    u => u.Id == id,
+                    u =>
+                        u.Id == id,
                     cancellationToken
                 );
 
@@ -519,15 +561,24 @@ public class UsersController : ControllerBase
         }
 
 
+        // ========================================================
+        // Ya estaba inactivo
+        // ========================================================
+
         if (!usuario.Activo)
         {
             return Ok(new
             {
                 message =
-                    $"El usuario {usuario.NombreCompleto} ya estaba desactivado."
+                    $"El usuario {usuario.NombreCompleto} " +
+                    $"ya estaba desactivado."
             });
         }
 
+
+        // ========================================================
+        // Desactivar
+        // ========================================================
 
         usuario.Activo =
             false;
@@ -541,7 +592,8 @@ public class UsersController : ControllerBase
         return Ok(new
         {
             message =
-                $"Usuario {usuario.NombreCompleto} desactivado correctamente."
+                $"Usuario {usuario.NombreCompleto} " +
+                $"desactivado correctamente."
         });
     }
 }

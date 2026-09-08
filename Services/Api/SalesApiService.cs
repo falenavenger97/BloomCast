@@ -2,7 +2,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using BloomCast.Contracts.Sales;
-using System.Net;
 
 namespace BloomCast.Services.Api;
 
