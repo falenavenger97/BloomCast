@@ -82,6 +82,7 @@ namespace BloomCast.Controllers
             }
             catch (HttpRequestException ex)
             {
+
                 TempData["Error"] =
                     $"No se pudo cargar el dashboard: {ex.Message}";
 

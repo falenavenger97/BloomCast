@@ -20,6 +20,29 @@ if (string.IsNullOrWhiteSpace(apiBaseUrl))
 }
 
 builder.Services.AddHttpClient<
+    IAuthApiService,
+    AuthApiService>(
+    client =>
+    {
+        client.BaseAddress =
+            new Uri(apiBaseUrl);
+
+        client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+                "application/json"
+            )
+        );
+
+        client.Timeout =
+            TimeSpan.FromSeconds(30);
+    });
+
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddTransient<
+    ApiAuthorizationHandler>();
+
+builder.Services.AddHttpClient<
     IUsersApiService,
     UsersApiService>(
     client =>
@@ -35,7 +58,8 @@ builder.Services.AddHttpClient<
 
         client.Timeout =
             TimeSpan.FromSeconds(30);
-    });
+    }).AddHttpMessageHandler<
+        ApiAuthorizationHandler>();
 
 builder.Services.AddHttpClient<
     IDashboardApiService,
@@ -53,7 +77,8 @@ builder.Services.AddHttpClient<
 
         client.Timeout =
             TimeSpan.FromSeconds(30);
-    });
+    }).AddHttpMessageHandler<
+        ApiAuthorizationHandler>();
 
 builder.Services.AddHttpClient<
     ISalesApiService,
@@ -71,7 +96,8 @@ builder.Services.AddHttpClient<
 
         client.Timeout =
             TimeSpan.FromSeconds(30);
-    });
+    }).AddHttpMessageHandler<
+        ApiAuthorizationHandler>();
 
 builder.Services.AddHttpClient<
     ILotsApiService,
@@ -89,7 +115,9 @@ builder.Services.AddHttpClient<
 
         client.Timeout =
             TimeSpan.FromSeconds(30);
-    });
+    })
+    .AddHttpMessageHandler<
+        ApiAuthorizationHandler>();
 
 builder.Services.AddDbContext<BloomCastDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

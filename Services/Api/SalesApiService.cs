@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using BloomCast.Contracts.Sales;
+using System.Net;
 
 namespace BloomCast.Services.Api;
 
@@ -164,6 +165,12 @@ public class SalesApiService : ISalesApiService
         if (response.IsSuccessStatusCode)
             return;
 
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new HttpRequestException(
+                "Solo una cuenta de administrador puede realizar esta acción."
+            );
+        }
 
         var content =
             await response.Content.ReadAsStringAsync();

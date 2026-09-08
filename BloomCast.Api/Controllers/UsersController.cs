@@ -1,11 +1,13 @@
 ﻿using BloomCast.Api.Data;
 using BloomCast.Api.Models;
 using BloomCast.Contracts.Users;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BloomCast.Api.Controllers;
 
+[Authorize(Roles = "Administrador")]
 [ApiController]
 [Route("api/users")]
 public class UsersController : ControllerBase

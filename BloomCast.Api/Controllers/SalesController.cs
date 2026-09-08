@@ -4,9 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BloomCast.Api.Models;
 using System.Data;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace BloomCast.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/sales")]
 public class SalesController : ControllerBase
@@ -957,37 +960,69 @@ public class SalesController : ControllerBase
     // Será reemplazada por autorización mediante token cuando
     // migremos Auth/MFA.
     // ============================================================
-
+    [Authorize(Roles = "Administrador")]
     [HttpPost("{id:int}/delete-with-password")]
     public async Task<IActionResult> Delete(
         int id,
         [FromBody] DeleteSaleRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Password))
+        // ========================================================
+        // Password requerido
+        // ========================================================
+
+        if (string.IsNullOrWhiteSpace(
+            request.Password))
         {
             return BadRequest(new
             {
-                message = "La contraseña es requerida."
+                message =
+                    "La contraseña es requerida."
             });
         }
 
 
         // ========================================================
-        // Validación administrativa temporal
-        //
-        // Conservamos la misma regla de la app anterior:
-        // usuario administrador ID 1.
-        //
-        // Esto desaparecerá al migrar Auth.
+        // Obtener usuario autenticado desde JWT
         // ========================================================
 
-        var usuarioAdmin = await _db.Usuarios
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                u => u.Id == 1 && u.Activo,
-                cancellationToken
+        var userIdClaim =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier
             );
+
+
+        if (!int.TryParse(
+                userIdClaim,
+                out var currentUserId))
+        {
+            return Unauthorized(new
+            {
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
+
+        // ========================================================
+        // Buscar administrador autenticado
+        //
+        // Ya NO usamos ID = 1.
+        // ========================================================
+
+        var usuarioAdmin =
+            await _db.Usuarios
+
+                .AsNoTracking()
+
+                .FirstOrDefaultAsync(
+                    u =>
+                        u.Id == currentUserId
+                        &&
+                        u.Activo,
+
+                    cancellationToken
+                );
 
 
         if (usuarioAdmin == null)
@@ -995,52 +1030,65 @@ public class SalesController : ControllerBase
             return Unauthorized(new
             {
                 message =
-                    "No se pudo validar el usuario administrador."
+                    "El usuario autenticado no existe o está inactivo."
             });
         }
 
 
-        bool passwordValido;
+        // ========================================================
+        // Validar nuevamente contraseña
+        //
+        // Esto funciona como reautenticación para una operación
+        // sensible.
+        // ========================================================
 
-        try
-        {
-            passwordValido =
-                BCrypt.Net.BCrypt.Verify(
-                    request.Password,
-                    usuarioAdmin.PasswordHash
-                );
-        }
-        catch
-        {
-            passwordValido = false;
-        }
+        var passwordValido =
+            VerificarPassword(
+                request.Password,
+                usuarioAdmin.PasswordHash
+            );
 
 
         if (!passwordValido)
         {
             return Unauthorized(new
             {
-                message = "Contraseña incorrecta."
+                message =
+                    "Contraseña incorrecta."
             });
         }
 
 
+        // ========================================================
+        // Transacción
+        // ========================================================
+
         await using var transaction =
-            await _db.Database.BeginTransactionAsync(
-                cancellationToken
-            );
+            await _db.Database
+                .BeginTransactionAsync(
+                    IsolationLevel.ReadCommitted,
+                    cancellationToken
+                );
 
 
         try
         {
-            var venta = await _db.Ventas
+            // ====================================================
+            // Buscar venta
+            // ====================================================
 
-                .Include(v => v.Detalles)
+            var venta =
+                await _db.Ventas
 
-                .FirstOrDefaultAsync(
-                    v => v.Id == id,
-                    cancellationToken
-                );
+                    .Include(v =>
+                        v.Detalles)
+
+                    .FirstOrDefaultAsync(
+                        v =>
+                            v.Id == id,
+
+                        cancellationToken
+                    );
 
 
             if (venta == null)
@@ -1048,6 +1096,7 @@ public class SalesController : ControllerBase
                 await transaction.RollbackAsync(
                     cancellationToken
                 );
+
 
                 return NotFound(new
                 {
@@ -1058,40 +1107,51 @@ public class SalesController : ControllerBase
 
 
             // ====================================================
-            // Bloquear y restaurar stock
+            // IDs de lotes involucrados
             // ====================================================
 
-            var loteIds = venta.Detalles
+            var loteIds =
+                venta.Detalles
 
-                .Select(d => d.LoteId)
+                    .Select(d =>
+                        d.LoteId)
 
-                .Distinct()
+                    .Distinct()
 
-                .OrderBy(x => x)
+                    .OrderBy(x =>
+                        x)
 
-                .ToList();
+                    .ToList();
 
 
             var lotes =
-                new Dictionary<int, BloomCast.Api.Models.Lote>();
+                new Dictionary<int, Lote>();
 
+
+            // ====================================================
+            // Bloquear lotes
+            //
+            // SELECT FOR UPDATE evita inconsistencias si otra
+            // operación intenta modificar los mismos lotes.
+            // ====================================================
 
             foreach (var loteId in loteIds)
             {
-                var lote = await _db.Lotes
+                var lote =
+                    await _db.Lotes
 
-                    .FromSqlInterpolated(
-                        $"""
-                    SELECT *
-                    FROM lotes
-                    WHERE id = {loteId}
-                    FOR UPDATE
-                    """
-                    )
+                        .FromSqlInterpolated(
+                            $"""
+                        SELECT *
+                        FROM lotes
+                        WHERE id = {loteId}
+                        FOR UPDATE
+                        """
+                        )
 
-                    .FirstOrDefaultAsync(
-                        cancellationToken
-                    );
+                        .FirstOrDefaultAsync(
+                            cancellationToken
+                        );
 
 
                 if (lote == null)
@@ -1103,43 +1163,75 @@ public class SalesController : ControllerBase
                 }
 
 
-                lotes[loteId] = lote;
-            }
-
-
-            foreach (var detalle in venta.Detalles)
-            {
-                lotes[detalle.LoteId]
-                    .CantidadActual += detalle.Cantidad;
+                lotes[loteId] =
+                    lote;
             }
 
 
             // ====================================================
-            // Eliminar detalles + venta
+            // Restaurar stock
+            // ====================================================
+
+            foreach (var detalle in venta.Detalles)
+            {
+                lotes[
+                    detalle.LoteId
+                ].CantidadActual +=
+                    detalle.Cantidad;
+            }
+
+
+            // ====================================================
+            // Eliminar detalles
             // ====================================================
 
             _db.DetalleVentas.RemoveRange(
                 venta.Detalles
             );
 
+
+            // ====================================================
+            // Eliminar venta
+            // ====================================================
+
             _db.Ventas.Remove(
                 venta
             );
 
+
+            // ====================================================
+            // Guardar
+            // ====================================================
 
             await _db.SaveChangesAsync(
                 cancellationToken
             );
 
 
+            // ====================================================
+            // COMMIT
+            // ====================================================
+
             await transaction.CommitAsync(
                 cancellationToken
             );
 
 
+            // ====================================================
+            // Log
+            // ====================================================
+
+            _logger.LogInformation(
+                "Administrador {UsuarioId} eliminó la venta {VentaId}.",
+                currentUserId,
+                id
+            );
+
+
             return Ok(new
             {
-                success = true,
+                success =
+                    true,
 
                 message =
                     $"Venta #{id} eliminada correctamente. " +
@@ -1163,8 +1255,9 @@ public class SalesController : ControllerBase
 
             _logger.LogError(
                 ex,
-                "Error eliminando venta {VentaId}",
-                id
+                "Error eliminando venta {VentaId} por usuario {UsuarioId}.",
+                id,
+                currentUserId
             );
 
 
@@ -1176,8 +1269,50 @@ public class SalesController : ControllerBase
                     "Ocurrió un error interno al eliminar la venta.",
 
                 statusCode:
-                    StatusCodes.Status500InternalServerError
+                    StatusCodes
+                        .Status500InternalServerError
             );
         }
+    }
+    // ============================================================
+    // Validación de contraseña
+    //
+    // Soporta BCrypt y temporalmente passwords legacy.
+    // ============================================================
+
+    private static bool VerificarPassword(
+        string inputPassword,
+        string storedHash)
+    {
+        if (string.IsNullOrWhiteSpace(
+            storedHash))
+        {
+            return false;
+        }
+
+
+        // BCrypt
+        if (storedHash.StartsWith("$2"))
+        {
+            try
+            {
+                return BCrypt.Net.BCrypt.Verify(
+                    inputPassword,
+                    storedHash
+                );
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+
+        // Compatibilidad temporal legacy
+        return string.Equals(
+            inputPassword,
+            storedHash,
+            StringComparison.Ordinal
+        );
     }
 }

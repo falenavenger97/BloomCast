@@ -1,11 +1,12 @@
 ﻿using BloomCast.Api.Data;
 using BloomCast.Contracts.Lots;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BloomCast.Api.Controllers;
 
-
+[Authorize(Roles = "Administrador")]
 [ApiController]
 [Route("api/lots")]
 public class LotsController : ControllerBase
