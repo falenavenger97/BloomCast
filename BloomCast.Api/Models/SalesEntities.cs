@@ -15,17 +15,29 @@ public class Usuario
     [Column("id")]
     public int Id { get; set; }
 
-
     [Column("nombrecompleto")]
     public string NombreCompleto { get; set; } = "";
 
+    [Column("correo")]
+    public string Correo { get; set; } = "";
 
     [Column("passwordhash")]
     public string PasswordHash { get; set; } = "";
 
+    [Column("rolid")]
+    public int RolId { get; set; }
 
     [Column("activo")]
     public bool Activo { get; set; }
+
+    [Column("mfa_secret")]
+    public string? MfaSecret { get; set; }
+
+    [Column("mfa_habilitado")]
+    public bool MfaHabilitado { get; set; }
+
+    [ForeignKey(nameof(RolId))]
+    public Rol? Rol { get; set; }
 }
 
 

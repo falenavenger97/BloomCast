@@ -20,6 +20,24 @@ if (string.IsNullOrWhiteSpace(apiBaseUrl))
 }
 
 builder.Services.AddHttpClient<
+    IUsersApiService,
+    UsersApiService>(
+    client =>
+    {
+        client.BaseAddress =
+            new Uri(apiBaseUrl);
+
+        client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+                "application/json"
+            )
+        );
+
+        client.Timeout =
+            TimeSpan.FromSeconds(30);
+    });
+
+builder.Services.AddHttpClient<
     IDashboardApiService,
     DashboardApiService>(
     client =>

@@ -23,7 +23,8 @@ public class BloomCastDbContext : DbContext
 
     public DbSet<Lote> Lotes =>
         Set<Lote>();
-
+    public DbSet<Rol> Roles =>
+    Set<Rol>();
 
     // ============================================================
     // Ventas
@@ -50,6 +51,11 @@ public class BloomCastDbContext : DbContext
             .HasOne(p => p.Orquidea)
             .WithMany()
             .HasForeignKey(p => p.OrquideaId);
+
+        modelBuilder.Entity<Usuario>()
+            .HasOne(u => u.Rol)
+            .WithMany()
+            .HasForeignKey(u => u.RolId);
         // ========================================================
         // Lote -> Orquídea
         // ========================================================
