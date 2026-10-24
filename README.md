@@ -4,7 +4,7 @@ Sistema de predicción de demanda de orquídeas con login seguro + MFA (TOTP).
 
 ---
 
-## Estructura real de la BD (leída del diagrama)
+## Estructura real de la BD 
 
 | Tabla | Campos clave |
 |-------|-------------|
