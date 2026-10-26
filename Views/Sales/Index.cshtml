@@ -1,5 +1,4 @@
-@model IEnumerable<BloomCast.Models.Venta>
-
+@model IEnumerable<BloomCast.Contracts.Sales.SaleResponse>
 @{
     ViewData["Title"] = "Ventas";
 }
@@ -472,8 +471,10 @@
                 <tbody>
                     @foreach (var s in Model)
                     {
-                        var userName = s.Usuario?.NombreCompleto ?? "Usuario #" + s.UsuarioId;
-                        var initials = string.Join("",
+                        var userName = !string.IsNullOrWhiteSpace(s.UsuarioNombre)
+                            ? s.UsuarioNombre
+                            : "Usuario #" + s.UsuarioId;
+                            var initials = string.Join("",
                             userName.Split(' ')
                                     .Where(x => !string.IsNullOrWhiteSpace(x))
                                     .Take(2)

@@ -1,260 +1,207 @@
-using BloomCast.Data;
+using BloomCast.Contracts.Lots;
 using BloomCast.Models;
+using BloomCast.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace BloomCast.Controllers
 {
     [Authorize(Roles = "Administrador")]
     public class LotsController : Controller
     {
-        private readonly BloomCastDbContext _db;
+        private readonly ILotsApiService _lotsApi;
 
-        public LotsController(BloomCastDbContext db)
+
+        public LotsController(
+            ILotsApiService lotsApi)
         {
-            _db = db;
+            _lotsApi = lotsApi;
         }
+
+
+        // =========================================================
+        // GET /Lots
+        // =========================================================
 
         public async Task<IActionResult> Index(
             string? search,
             string? estado)
         {
-            var hoy = DateTime.UtcNow.Date;
-
-            var limiteCritico = hoy.AddDays(8);
-            var limiteProximo = hoy.AddDays(31);
-
-            var query = _db.Lotes
-                .Include(l => l.Orquidea)
-                .AsNoTracking()
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(search))
+            try
             {
-                search = search.Trim().ToLower();
+                var lotes =
+                    await _lotsApi.GetLotsAsync(
+                        search,
+                        estado
+                    );
 
-                query = query.Where(l =>
-                    l.CodigoLote.ToLower().Contains(search) ||
-                    l.Orquidea!.Variedad.ToLower().Contains(search) ||
-                    l.Orquidea.Tipo.ToLower().Contains(search));
+
+                ViewBag.Search =
+                    search;
+
+                ViewBag.Estado =
+                    estado;
+
+
+                return View(lotes);
             }
-
-            if (!string.IsNullOrWhiteSpace(estado))
+            catch (HttpRequestException ex)
             {
-                switch (estado.ToLower())
-                {
-                    case "agotado":
-
-                        query = query.Where(l =>
-                            l.CantidadActual <= 0);
-
-                        break;
+                TempData["Error"] =
+                    $"No se pudo obtener los lotes: {ex.Message}";
 
 
-                    case "vencido":
+                ViewBag.Search =
+                    search;
 
-                        query = query.Where(l =>
-                            l.CantidadActual > 0 &&
-                            l.FechaCaducidad.HasValue &&
-                            l.FechaCaducidad.Value < hoy);
-
-                        break;
+                ViewBag.Estado =
+                    estado;
 
 
-                    case "critico":
-
-                        query = query.Where(l =>
-                            l.CantidadActual > 0 &&
-                            l.FechaCaducidad.HasValue &&
-                            l.FechaCaducidad.Value >= hoy &&
-                            l.FechaCaducidad.Value < limiteCritico);
-
-                        break;
-
-
-                    case "proximo":
-
-                        query = query.Where(l =>
-                            l.CantidadActual > 0 &&
-                            l.FechaCaducidad.HasValue &&
-                            l.FechaCaducidad.Value >= limiteCritico &&
-                            l.FechaCaducidad.Value < limiteProximo);
-
-                        break;
-
-
-                    case "estable":
-
-                        query = query.Where(l =>
-                            l.CantidadActual > 0 &&
-                            l.FechaCaducidad.HasValue &&
-                            l.FechaCaducidad.Value >= limiteProximo);
-
-                        break;
-
-
-                    case "sinfecha":
-
-                        query = query.Where(l =>
-                            l.CantidadActual > 0 &&
-                            !l.FechaCaducidad.HasValue);
-
-                        break;
-                }
+                return View(
+                    new List<LotResponse>()
+                );
             }
-
-
-            var lotes = await query
-                .OrderBy(l => l.FechaCaducidad)
-                .ThenByDescending(l => l.FechaIngreso)
-                .ToListAsync();
-
-
-            ViewBag.Search = search;
-            ViewBag.Estado = estado;
-
-            return View(lotes);
         }
+
+
+        // =========================================================
+        // GET /Lots/Create
+        // =========================================================
 
         [HttpGet]
         public async Task<IActionResult> Create()
         {
-            await CargarOrquideasAsync();
+            try
+            {
+                await CargarOrquideasAsync();
 
-            return View(new LoteCreateViewModel());
+                return View(
+                    new LoteCreateViewModel()
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                TempData["Error"] =
+                    $"No se pudieron cargar las orquídeas: {ex.Message}";
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
+            }
         }
+
+
+        // =========================================================
+        // POST /Lots/Create
+        // =========================================================
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(LoteCreateViewModel vm)
+        public async Task<IActionResult> Create(
+            LoteCreateViewModel vm)
         {
-            await CargarOrquideasAsync(vm.OrquideaId);
-
             if (!ModelState.IsValid)
             {
-                return View(vm);
-            }
-
-            var orquidea = await _db.Orquideas
-                .FirstOrDefaultAsync(o => o.Id == vm.OrquideaId);
-
-            if (orquidea == null)
-            {
-                ModelState.AddModelError(
-                    nameof(vm.OrquideaId),
-                    "La orquídea seleccionada no existe."
+                await CargarOrquideasSeguroAsync(
+                    vm.OrquideaId
                 );
 
                 return View(vm);
             }
 
-            if (orquidea.DiasVidaComercial <= 0)
-            {
-                ModelState.AddModelError(
-                    nameof(vm.OrquideaId),
-                    "La orquídea seleccionada no tiene configurada una vida comercial válida."
-                );
-
-                return View(vm);
-            }
-
-            var fechaIngreso = DateTime.UtcNow;
 
             try
             {
-                var codigoLote = await GenerarCodigoLoteAsync(
-                    orquidea.Id,
-                    fechaIngreso
-                );
+                var request =
+                    new CreateLotRequest
+                    {
+                        OrquideaId =
+                            vm.OrquideaId,
 
-                var fechaCaducidad = fechaIngreso
-                    .AddDays(orquidea.DiasVidaComercial);
+                        CantidadActual =
+                            vm.CantidadActual
+                    };
 
-                var lote = new Lote
-                {
-                    OrquideaId = orquidea.Id,
 
-                    CodigoLote = codigoLote,
+                var lote =
+                    await _lotsApi.CreateLotAsync(
+                        request
+                    );
 
-                    CantidadInicial = vm.CantidadActual,
-                    CantidadActual = vm.CantidadActual,
-
-                    FechaIngreso = fechaIngreso,
-
-                    FechaFloracion = fechaIngreso,
-
-                    FechaCaducidad = fechaCaducidad
-                };
-
-                _db.Lotes.Add(lote);
-
-                await _db.SaveChangesAsync();
 
                 TempData["Success"] =
                     $"Lote {lote.CodigoLote} registrado correctamente. " +
-                    $"Caducidad estimada: {lote.FechaCaducidad:dd/MM/yyyy}.";
+                    $"Caducidad estimada: " +
+                    $"{lote.FechaCaducidad:dd/MM/yyyy}.";
 
-                return RedirectToAction(nameof(Index));
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 ModelState.AddModelError(
                     "",
-                    $"No se pudo registrar el lote: {ex.Message}"
+                    ex.Message
                 );
+
+
+                await CargarOrquideasSeguroAsync(
+                    vm.OrquideaId
+                );
+
 
                 return View(vm);
             }
         }
-        private async Task<string> GenerarCodigoLoteAsync(
-            int orquideaId,
-            DateTime fecha)
-        {
-            var prefijo =
-                $"LOT-{fecha:yyyy-MM}-{orquideaId}-";
 
-            var codigosExistentes = await _db.Lotes
-                .Where(l => l.CodigoLote.StartsWith(prefijo))
-                .Select(l => l.CodigoLote)
-                .ToListAsync();
 
-            var ultimoCorrelativo = codigosExistentes
-                .Select(codigo =>
-                {
-                    var partes = codigo.Split('-');
+        // =========================================================
+        // Orquídeas desde API
+        // =========================================================
 
-                    if (partes.Length == 5 &&
-                        int.TryParse(partes[4], out var numero))
-                    {
-                        return numero;
-                    }
-
-                    return -1;
-                })
-                .DefaultIfEmpty(-1)
-                .Max();
-
-            var siguienteCorrelativo =
-                ultimoCorrelativo + 1;
-
-            return $"{prefijo}{siguienteCorrelativo}";
-        }
         private async Task CargarOrquideasAsync(
             int? seleccionado = null)
         {
-            var orquideas = await _db.Orquideas
-                .AsNoTracking()
-                .OrderBy(o => o.Variedad)
-                .ToListAsync();
+            var orquideas =
+                await _lotsApi.GetOrchidsAsync();
 
-            ViewBag.Orquideas = new SelectList(
-                orquideas,
-                "Id",
-                "Variedad",
-                seleccionado
-            );
+
+            ViewBag.Orquideas =
+                new SelectList(
+                    orquideas,
+                    "Id",
+                    "Variedad",
+                    seleccionado
+                );
+        }
+
+
+        // =========================================================
+        // Recarga segura cuando falla POST
+        // =========================================================
+
+        private async Task CargarOrquideasSeguroAsync(
+            int? seleccionado = null)
+        {
+            try
+            {
+                await CargarOrquideasAsync(
+                    seleccionado
+                );
+            }
+            catch
+            {
+                ViewBag.Orquideas =
+                    new SelectList(
+                        Array.Empty<OrchidResponse>(),
+                        "Id",
+                        "Variedad"
+                    );
+            }
         }
     }
 }

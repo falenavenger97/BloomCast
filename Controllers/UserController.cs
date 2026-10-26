@@ -1,192 +1,465 @@
+using BloomCast.Contracts.Users;
+using BloomCast.Models;
+using BloomCast.Services.Api;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using BloomCast.Data;
-using BloomCast.Models;
+using System.Security.Claims;
 
 namespace BloomCast.Controllers
 {
     [Authorize(Roles = "Administrador")]
     public class UsersController : Controller
     {
-        private readonly BloomCastDbContext _db;
+        private readonly IUsersApiService
+            _usersApi;
 
-        public UsersController(BloomCastDbContext db)
+
+        public UsersController(
+            IUsersApiService usersApi)
         {
-            _db = db;
+            _usersApi =
+                usersApi;
         }
 
+
+        // =========================================================
         // GET /Users
-        public async Task<IActionResult> Index(string? search, int? rolId, bool? activo)
+        // =========================================================
+
+        public async Task<IActionResult> Index(
+            string? search,
+            int? rolId,
+            bool? activo)
         {
-            var query = _db.Usuarios.Include(u => u.Rol).AsQueryable();
+            try
+            {
+                var usuarios =
+                    await _usersApi.GetUsersAsync(
+                        search,
+                        rolId,
+                        activo
+                    );
 
-            if (!string.IsNullOrWhiteSpace(search))
-                query = query.Where(u =>
-                    u.NombreCompleto.ToLower().Contains(search.ToLower()) ||
-                    u.Correo.ToLower().Contains(search.ToLower()));
 
-            if (rolId.HasValue)
-                query = query.Where(u => u.RolId == rolId.Value);
+                var roles =
+                    await _usersApi.GetRolesAsync();
 
-            if (activo.HasValue)
-                query = query.Where(u => u.Activo == activo.Value);
 
-            var usuarios = await query.OrderBy(u => u.NombreCompleto).ToListAsync();
-            var roles = await _db.Roles.OrderBy(r => r.Nombre).ToListAsync();
+                ViewBag.Search =
+                    search;
 
-            ViewBag.Search = search;
-            ViewBag.RolId = rolId;
-            ViewBag.Activo = activo;
-            ViewBag.Roles = new SelectList(roles, "Id", "Nombre", rolId);
+                ViewBag.RolId =
+                    rolId;
 
-            return View(usuarios);
+                ViewBag.Activo =
+                    activo;
+
+                ViewBag.Roles =
+                    new SelectList(
+                        roles,
+                        "Id",
+                        "Nombre",
+                        rolId
+                    );
+
+
+                return View(
+                    usuarios
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                TempData["Error"] =
+                    $"No se pudieron cargar los usuarios: {ex.Message}";
+
+
+                ViewBag.Search =
+                    search;
+
+                ViewBag.RolId =
+                    rolId;
+
+                ViewBag.Activo =
+                    activo;
+
+
+                ViewBag.Roles =
+                    new SelectList(
+                        Array.Empty<RoleResponse>(),
+                        "Id",
+                        "Nombre"
+                    );
+
+
+                return View(
+                    new List<UserResponse>()
+                );
+            }
         }
 
+
+        // =========================================================
         // GET /Users/Create
+        // =========================================================
+
+        [HttpGet]
         public async Task<IActionResult> Create()
         {
-            await CargarRolesAsync();
-            return View(new UserCreateViewModel());
+            try
+            {
+                await CargarRolesAsync();
+
+                return View(
+                    new UserCreateViewModel()
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                TempData["Error"] =
+                    $"No se pudieron cargar los roles: {ex.Message}";
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
+            }
         }
 
+
+        // =========================================================
         // POST /Users/Create
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(UserCreateViewModel vm)
+        public async Task<IActionResult> Create(
+            UserCreateViewModel vm)
         {
             if (!ModelState.IsValid)
             {
-                await CargarRolesAsync();
+                await CargarRolesSeguroAsync(
+                    vm.RolId
+                );
+
                 return View(vm);
             }
 
-            if (await _db.Usuarios.AnyAsync(u => u.Correo == vm.Correo))
+
+            try
             {
-                ModelState.AddModelError("Correo", "Ya existe un usuario con ese correo.");
-                await CargarRolesAsync();
+                var request =
+                    new CreateUserRequest
+                    {
+                        NombreCompleto =
+                            vm.NombreCompleto,
+
+                        Correo =
+                            vm.Correo,
+
+                        Password =
+                            vm.Password,
+
+                        RolId =
+                            vm.RolId,
+
+                        Activo =
+                            vm.Activo
+                    };
+
+
+                var usuario =
+                    await _usersApi.CreateUserAsync(
+                        request
+                    );
+
+
+                TempData["Success"] =
+                    $"Usuario <strong>" +
+                    $"{usuario.NombreCompleto}" +
+                    $"</strong> creado correctamente.";
+
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                ModelState.AddModelError(
+                    "",
+                    ex.Message
+                );
+
+
+                await CargarRolesSeguroAsync(
+                    vm.RolId
+                );
+
+
                 return View(vm);
             }
-
-            var usuario = new Usuario
-            {
-                NombreCompleto = vm.NombreCompleto.Trim(),
-                Correo = vm.Correo.Trim().ToLower(),
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(vm.Password),
-                RolId = vm.RolId,
-                Activo = vm.Activo,
-                MfaHabilitado = false
-            };
-
-            _db.Usuarios.Add(usuario);
-            await _db.SaveChangesAsync();
-
-            TempData["Success"] = $"Usuario <strong>{usuario.NombreCompleto}</strong> creado correctamente.";
-            return RedirectToAction(nameof(Index));
         }
 
-        // GET /Users/Edit/5
-        public async Task<IActionResult> Edit(int id)
+
+        // =========================================================
+        // GET /Users/Edit/{id}
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> Edit(
+            int id)
         {
-            var usuario = await _db.Usuarios.Include(u => u.Rol).FirstOrDefaultAsync(u => u.Id == id);
-            if (usuario == null) return NotFound();
-
-            await CargarRolesAsync(usuario.RolId);
-
-            var vm = new UserEditViewModel
+            try
             {
-                Id = usuario.Id,
-                NombreCompleto = usuario.NombreCompleto,
-                Correo = usuario.Correo,
-                RolId = usuario.RolId,
-                Activo = usuario.Activo,
-                MfaHabilitado = usuario.MfaHabilitado
-            };
+                var usuario =
+                    await _usersApi.GetUserByIdAsync(
+                        id
+                    );
 
-            return View(vm);
+
+                if (usuario == null)
+                {
+                    return NotFound();
+                }
+
+
+                await CargarRolesAsync(
+                    usuario.RolId
+                );
+
+
+                var vm =
+                    new UserEditViewModel
+                    {
+                        Id =
+                            usuario.Id,
+
+                        NombreCompleto =
+                            usuario.NombreCompleto,
+
+                        Correo =
+                            usuario.Correo,
+
+                        RolId =
+                            usuario.RolId,
+
+                        Activo =
+                            usuario.Activo,
+
+                        MfaHabilitado =
+                            usuario.MfaHabilitado
+                    };
+
+
+                return View(vm);
+            }
+            catch (HttpRequestException ex)
+            {
+                TempData["Error"] =
+                    $"No se pudo cargar el usuario: {ex.Message}";
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
+            }
         }
 
-        // POST /Users/Edit/5
+
+        // =========================================================
+        // POST /Users/Edit/{id}
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, UserEditViewModel vm)
+        public async Task<IActionResult> Edit(
+            int id,
+            UserEditViewModel vm)
         {
-            if (id != vm.Id) return BadRequest();
+            if (id != vm.Id)
+            {
+                return BadRequest();
+            }
+
 
             if (!ModelState.IsValid)
             {
-                await CargarRolesAsync(vm.RolId);
+                await CargarRolesSeguroAsync(
+                    vm.RolId
+                );
+
                 return View(vm);
             }
 
-            var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
-            if (usuario == null) return NotFound();
 
-            // Check correo duplicado (excluyendo al mismo usuario)
-            if (await _db.Usuarios.AnyAsync(u => u.Correo == vm.Correo.Trim().ToLower() && u.Id != id))
+            try
             {
-                ModelState.AddModelError("Correo", "Ya existe otro usuario con ese correo.");
-                await CargarRolesAsync(vm.RolId);
+                var request =
+                    new UpdateUserRequest
+                    {
+                        NombreCompleto =
+                            vm.NombreCompleto,
+
+                        Correo =
+                            vm.Correo,
+
+                        RolId =
+                            vm.RolId,
+
+                        Activo =
+                            vm.Activo,
+
+                        NuevaPassword =
+                            string.IsNullOrWhiteSpace(
+                                vm.NuevaPassword
+                            )
+                                ? null
+                                : vm.NuevaPassword,
+
+                        ResetearMfa =
+                            vm.ResetearMfa
+                    };
+
+
+                var usuario =
+                    await _usersApi.UpdateUserAsync(
+                        id,
+                        request
+                    );
+
+
+                TempData["Success"] =
+                    $"Usuario <strong>" +
+                    $"{usuario.NombreCompleto}" +
+                    $"</strong> actualizado correctamente.";
+
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                ModelState.AddModelError(
+                    "",
+                    ex.Message
+                );
+
+
+                await CargarRolesSeguroAsync(
+                    vm.RolId
+                );
+
+
                 return View(vm);
             }
-
-            usuario.NombreCompleto = vm.NombreCompleto.Trim();
-            usuario.Correo = vm.Correo.Trim().ToLower();
-            usuario.RolId = vm.RolId;
-            usuario.Activo = vm.Activo;
-
-            // Solo cambiar password si se proporcionó una nueva
-            if (!string.IsNullOrWhiteSpace(vm.NuevaPassword))
-                usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(vm.NuevaPassword);
-
-            // Resetear MFA si se solicitó
-            if (vm.ResetearMfa)
-            {
-                usuario.MfaSecret = null;
-                usuario.MfaHabilitado = false;
-            }
-
-            await _db.SaveChangesAsync();
-
-            TempData["Success"] = $"Usuario <strong>{usuario.NombreCompleto}</strong> actualizado correctamente.";
-            return RedirectToAction(nameof(Index));
         }
 
-        // POST /Users/Delete/5
+
+        // =========================================================
+        // POST /Users/Delete/{id}
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(
+            int id)
         {
-            var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
+            // =====================================================
+            // Protección temporal frontend:
+            // impedir desactivar el usuario actualmente autenticado.
+            //
+            // La API hará esta validación definitivamente cuando
+            // implementemos JWT.
+            // =====================================================
 
-            if (usuario == null)
-                return NotFound();
+            var currentUserClaim =
+                User.FindFirstValue(
+                    ClaimTypes.NameIdentifier
+                );
 
-            var currentUserId = int.Parse(
-                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
 
-            if (usuario.Id == currentUserId)
+            if (int.TryParse(
+                    currentUserClaim,
+                    out var currentUserId)
+                &&
+                currentUserId == id)
             {
-                TempData["Error"] = "No puedes eliminar tu propio usuario.";
-                return RedirectToAction(nameof(Index));
+                TempData["Error"] =
+                    "No puedes desactivar tu propio usuario.";
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
             }
 
-            usuario.Activo = false;
 
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _usersApi.DeactivateUserAsync(
+                    id
+                );
 
-            TempData["Success"] =
-                $"Usuario <strong>{usuario.NombreCompleto}</strong> desactivado correctamente.";
 
-            return RedirectToAction(nameof(Index));
+                TempData["Success"] =
+                    "Usuario desactivado correctamente.";
+
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                TempData["Error"] =
+                    ex.Message;
+
+
+                return RedirectToAction(
+                    nameof(Index)
+                );
+            }
         }
 
-        // ── helpers ──────────────────────────────────────────────────────────
-        private async Task CargarRolesAsync(int? selectedId = null)
+
+        // =========================================================
+        // Helpers
+        // =========================================================
+
+        private async Task CargarRolesAsync(
+            int? selectedId = null)
         {
-            var roles = await _db.Roles.OrderBy(r => r.Nombre).ToListAsync();
-            ViewBag.Roles = new SelectList(roles, "Id", "Nombre", selectedId);
+            var roles =
+                await _usersApi.GetRolesAsync();
+
+
+            ViewBag.Roles =
+                new SelectList(
+                    roles,
+                    "Id",
+                    "Nombre",
+                    selectedId
+                );
+        }
+
+
+        private async Task CargarRolesSeguroAsync(
+            int? selectedId = null)
+        {
+            try
+            {
+                await CargarRolesAsync(
+                    selectedId
+                );
+            }
+            catch
+            {
+                ViewBag.Roles =
+                    new SelectList(
+                        Array.Empty<RoleResponse>(),
+                        "Id",
+                        "Nombre"
+                    );
+            }
         }
     }
 }

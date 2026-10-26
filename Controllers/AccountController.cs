@@ -1,169 +1,439 @@
-using Microsoft.AspNetCore.Mvc;
+using BloomCast.Contracts.Auth;
+using BloomCast.Models;
+using BloomCast.Services.Api;
+
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+
 using System.Security.Claims;
-using BloomCast.Data;
-using BloomCast.Models;
-using BloomCast.Services;
-using Microsoft.EntityFrameworkCore;
+
 
 namespace BloomCast.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly BloomCastDbContext _db;
-        private readonly IMfaService _mfa;
+        private readonly IAuthApiService
+            _authApi;
 
-        public AccountController(BloomCastDbContext db, IMfaService mfa)
+
+        public AccountController(
+            IAuthApiService authApi)
         {
-            _db  = db;
-            _mfa = mfa;
+            _authApi =
+                authApi;
         }
 
-        // GET /Account/Login
-        [HttpGet]
-        public IActionResult Login() =>
-            User.Identity?.IsAuthenticated == true
-                ? RedirectToAction("Index", "Home")
-                : View();
 
+        // =========================================================
+        // GET /Account/Login
+        // =========================================================
+
+        [HttpGet]
+        public IActionResult Login()
+        {
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction(
+                    "Index",
+                    "Home"
+                );
+            }
+
+
+            return View();
+        }
+
+
+        // =========================================================
         // POST /Account/Login
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(LoginViewModel vm)
+        public async Task<IActionResult> Login(
+            LoginViewModel vm)
         {
-            if (!ModelState.IsValid) return View(vm);
-
-            var usuario = await _db.Usuarios
-                .Include(u => u.Rol)
-                .FirstOrDefaultAsync(u => u.Correo == vm.Correo && u.Activo);
-
-            if (usuario == null || !VerificarPassword(vm.Password, usuario.PasswordHash))
+            if (!ModelState.IsValid)
             {
-                ModelState.AddModelError("", "Credenciales incorrectas o usuario inactivo.");
                 return View(vm);
             }
 
-            // Save pending user in session → go to MFA step
-            HttpContext.Session.SetInt32("PendingUserId",    usuario.Id);
-            HttpContext.Session.SetString("PendingUserEmail", usuario.Correo);
 
-            // First-time MFA setup
-            if (!usuario.MfaHabilitado || string.IsNullOrEmpty(usuario.MfaSecret))
+            try
             {
-                var secret = _mfa.GenerarSecretKey();
-                HttpContext.Session.SetString("MfaSetupSecret", secret);
-                var qr = _mfa.GenerarQrCode(usuario.Correo, secret);
-                return View("MfaSetup", new MfaViewModel { QrCodeBase64 = qr, EsConfiguracion = true });
-            }
+                var response =
+                    await _authApi.LoginAsync(
+                        new LoginRequest
+                        {
+                            Correo =
+                                vm.Correo,
 
-            return RedirectToAction("Mfa");
+                            Password =
+                                vm.Password
+                        }
+                    );
+
+
+                // =================================================
+                // Guardar challenge temporal
+                // =================================================
+
+                HttpContext.Session.SetString(
+                    "MfaChallengeToken",
+                    response.ChallengeToken
+                );
+
+
+                // =================================================
+                // Primera configuración MFA
+                // =================================================
+
+                if (response.RequiresMfaSetup)
+                {
+                    if (string.IsNullOrWhiteSpace(
+                            response.QrCodeBase64))
+                    {
+                        ModelState.AddModelError(
+                            "",
+                            "La API no devolvió el código QR para configurar MFA."
+                        );
+
+                        return View(vm);
+                    }
+
+
+                    HttpContext.Session.SetString(
+                        "MfaQrCodeBase64",
+                        response.QrCodeBase64
+                    );
+
+
+                    return View(
+                        "MfaSetup",
+                        new MfaViewModel
+                        {
+                            QrCodeBase64 =
+                                response.QrCodeBase64,
+
+                            EsConfiguracion =
+                                true
+                        }
+                    );
+                }
+
+
+                // =================================================
+                // MFA ya configurado
+                // =================================================
+
+                HttpContext.Session.Remove(
+                    "MfaQrCodeBase64"
+                );
+
+
+                return RedirectToAction(
+                    nameof(Mfa)
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                ModelState.AddModelError(
+                    "",
+                    ex.Message
+                );
+
+                return View(vm);
+            }
         }
 
+
+        // =========================================================
         // GET /Account/Mfa
+        // =========================================================
+
         [HttpGet]
         public IActionResult Mfa()
         {
-            if (HttpContext.Session.GetInt32("PendingUserId") == null)
-                return RedirectToAction("Login");
-            return View(new MfaViewModel());
+            var challenge =
+                HttpContext.Session.GetString(
+                    "MfaChallengeToken"
+                );
+
+
+            if (string.IsNullOrWhiteSpace(
+                    challenge))
+            {
+                return RedirectToAction(
+                    nameof(Login)
+                );
+            }
+
+
+            return View(
+                new MfaViewModel()
+            );
         }
 
+
+        // =========================================================
         // POST /Account/Mfa
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Mfa(MfaViewModel vm)
+        public async Task<IActionResult> Mfa(
+            MfaViewModel vm)
         {
-            var userId = HttpContext.Session.GetInt32("PendingUserId");
-            if (userId == null) return RedirectToAction("Login");
+            var challenge =
+                HttpContext.Session.GetString(
+                    "MfaChallengeToken"
+                );
 
-            var usuario = await _db.Usuarios.Include(u => u.Rol).FirstOrDefaultAsync(u => u.Id == userId);
-            if (usuario == null) return RedirectToAction("Login");
 
-            if (!_mfa.ValidarCodigo(usuario.MfaSecret!, vm.Codigo))
+            if (string.IsNullOrWhiteSpace(
+                    challenge))
             {
-                ModelState.AddModelError("", "Código incorrecto o expirado. Intenta de nuevo.");
+                return RedirectToAction(
+                    nameof(Login)
+                );
+            }
+
+
+            try
+            {
+                var usuario =
+                    await _authApi.VerifyMfaAsync(
+                        new MfaVerifyRequest
+                        {
+                            ChallengeToken =
+                                challenge,
+
+                            Codigo =
+                                vm.Codigo
+                        }
+                    );
+
+
+                await SignInAsync(
+                    usuario
+                );
+
+
+                return RedirectToAction(
+                    "Index",
+                    "Home"
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                ModelState.AddModelError(
+                    "",
+                    ex.Message
+                );
+
+
                 return View(vm);
             }
-
-            await SignInAsync(usuario);
-            return RedirectToAction("Index", "Home");
         }
 
-        // POST /Account/MfaSetup  — primera configuración
+
+        // =========================================================
+        // POST /Account/MfaSetup
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MfaSetup(MfaViewModel vm)
+        public async Task<IActionResult> MfaSetup(
+            MfaViewModel vm)
         {
-            var userId = HttpContext.Session.GetInt32("PendingUserId");
-            var secret = HttpContext.Session.GetString("MfaSetupSecret");
+            var challenge =
+                HttpContext.Session.GetString(
+                    "MfaChallengeToken"
+                );
 
-            if (userId == null || string.IsNullOrEmpty(secret))
-                return RedirectToAction("Login");
 
-            if (!_mfa.ValidarCodigo(secret, vm.Codigo))
+            var qrCode =
+                HttpContext.Session.GetString(
+                    "MfaQrCodeBase64"
+                );
+
+
+            if (string.IsNullOrWhiteSpace(
+                    challenge))
             {
-                var email = HttpContext.Session.GetString("PendingUserEmail") ?? "";
-                var qr    = _mfa.GenerarQrCode(email, secret);
-                ModelState.AddModelError("", "Código incorrecto. Vuelve a escanear el QR e intenta de nuevo.");
-                return View(new MfaViewModel { QrCodeBase64 = qr, EsConfiguracion = true });
+                return RedirectToAction(
+                    nameof(Login)
+                );
             }
 
-            var usuario = await _db.Usuarios.Include(u => u.Rol).FirstOrDefaultAsync(u => u.Id == userId);
-            if (usuario == null) return RedirectToAction("Login");
 
-            usuario.MfaSecret     = secret;
-            usuario.MfaHabilitado = true;
-            await _db.SaveChangesAsync();
+            try
+            {
+                var usuario =
+                    await _authApi.VerifyMfaAsync(
+                        new MfaVerifyRequest
+                        {
+                            ChallengeToken =
+                                challenge,
 
-            await SignInAsync(usuario);
-            return RedirectToAction("Index", "Home");
+                            Codigo =
+                                vm.Codigo
+                        }
+                    );
+
+
+                await SignInAsync(
+                    usuario
+                );
+
+
+                return RedirectToAction(
+                    "Index",
+                    "Home"
+                );
+            }
+            catch (HttpRequestException ex)
+            {
+                ModelState.AddModelError(
+                    "",
+                    ex.Message
+                );
+
+
+                return View(
+                    "MfaSetup",
+                    new MfaViewModel
+                    {
+                        Codigo =
+                            vm.Codigo,
+
+                        QrCodeBase64 =
+                            qrCode ?? "",
+
+                        EsConfiguracion =
+                            true
+                    }
+                );
+            }
         }
 
+
+        // =========================================================
         // POST /Account/Logout
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignOutAsync(
+                CookieAuthenticationDefaults
+                    .AuthenticationScheme
+            );
+
+
             HttpContext.Session.Clear();
-            return RedirectToAction("Login");
+
+
+            return RedirectToAction(
+                nameof(Login)
+            );
         }
 
-        // ── helpers ───────────────────────────────────────────────────────────
-        private async Task SignInAsync(Usuario usuario)
+
+        // =========================================================
+        // Crear Cookie Web + guardar JWT
+        // =========================================================
+
+        private async Task SignInAsync(
+            AuthenticatedUserResponse usuario)
         {
-            HttpContext.Session.Remove("PendingUserId");
-            HttpContext.Session.Remove("PendingUserEmail");
-            HttpContext.Session.Remove("MfaSetupSecret");
+            // =====================================================
+            // Limpiar estado MFA temporal
+            // =====================================================
 
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
-                new(ClaimTypes.Name,           usuario.NombreCompleto),
-                new(ClaimTypes.Email,          usuario.Correo),
-                new(ClaimTypes.Role,           usuario.Rol?.Nombre ?? "usuario"),
-                new("RolNombre",               usuario.Rol?.Nombre ?? "usuario")
-            };
+            HttpContext.Session.Remove(
+                "MfaChallengeToken"
+            );
 
-            var identity  = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
+            HttpContext.Session.Remove(
+                "MfaQrCodeBase64"
+            );
+
+
+            // =====================================================
+            // Guardar JWT para las llamadas Web -> API
+            // =====================================================
+
+            HttpContext.Session.SetString(
+                "AccessToken",
+                usuario.AccessToken
+            );
+
+            // =====================================================
+            // Claims de la Cookie MVC
+            // =====================================================
+
+            var claims =
+                new List<Claim>
+                {
+                    new(
+                        ClaimTypes.NameIdentifier,
+                        usuario.UsuarioId.ToString()
+                    ),
+
+                    new(
+                        ClaimTypes.Name,
+                        usuario.NombreCompleto
+                    ),
+
+                    new(
+                        ClaimTypes.Email,
+                        usuario.Correo
+                    ),
+
+                    new(
+                        ClaimTypes.Role,
+                        usuario.Rol
+                    ),
+
+                    new(
+                        "RolNombre",
+                        usuario.Rol
+                    )
+                };
+
+
+            var identity =
+                new ClaimsIdentity(
+                    claims,
+                    CookieAuthenticationDefaults
+                        .AuthenticationScheme
+                );
+
+
+            var principal =
+                new ClaimsPrincipal(
+                    identity
+                );
+
 
             await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                principal,
-                new AuthenticationProperties { IsPersistent = false, ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) });
-        }
+                CookieAuthenticationDefaults
+                    .AuthenticationScheme,
 
-        private static bool VerificarPassword(string inputPassword, string storedHash)
-        {
-            if (storedHash.StartsWith("$2"))
-            {
-                try { return BCrypt.Net.BCrypt.Verify(inputPassword, storedHash); }
-                catch { return false; }
-            }
-            // Plain-text fallback (legacy)
-            return string.Equals(inputPassword, storedHash, StringComparison.Ordinal);
+                principal,
+
+                new AuthenticationProperties
+                {
+                    IsPersistent =
+                        false,
+
+                    ExpiresUtc =
+                        usuario.ExpiresUtc
+                }
+            );
         }
     }
 }
